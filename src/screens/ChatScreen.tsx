@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { chatService, ChatMessage } from '../api/chatService';
 import { feedService, FeedEvent } from '../api/feedService';
 import { useLocationTracker } from '../hooks/useLocationTracker';
 import { Send, MapPin, Globe, MessageSquare } from 'lucide-react-native';
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'local' | 'global'>('local');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [feed, setFeed] = useState<FeedEvent[]>([]);
@@ -91,7 +93,7 @@ export default function ChatScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>COMUNIDAD</Text>
         <View style={styles.tabContainer}>
@@ -157,7 +159,7 @@ export default function ChatScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

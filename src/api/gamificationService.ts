@@ -38,6 +38,18 @@ export const gamificationService = {
     if (error) throw error;
   },
 
+  async updateUsername(username: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ username })
+      .eq('id', user.id);
+
+    if (error) throw error;
+  },
+
   async getMyAchievements(): Promise<Achievement[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];

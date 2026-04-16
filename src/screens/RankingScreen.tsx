@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { rankingService, LeaderboardEntry } from '../api/rankingService';
 import { Trophy, Map as MapIcon, User } from 'lucide-react-native';
 
@@ -7,6 +8,7 @@ import { Trophy, Map as MapIcon, User } from 'lucide-react-native';
  * Pantalla de Ranking Global con estética premium.
  */
 export default function RankingScreen() {
+  const insets = useSafeAreaInsets();
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,7 +57,7 @@ export default function RankingScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.title}>TOP CONQUISTADORES</Text>
         <View style={styles.headerAccent} />
@@ -80,7 +82,7 @@ export default function RankingScreen() {
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

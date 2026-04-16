@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, SafeAreaView, RefreshControl, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { runService, Run } from '../api/runService';
 import { gamificationService, Achievement } from '../api/gamificationService';
 import { supabase } from '../lib/supabase';
-import { History, LogOut, ChevronRight, Ruler, Trophy, Palette, Zap } from 'lucide-react-native';
+import { History, LogOut, ChevronRight, Ruler, Trophy, Palette, Zap, Pencil } from 'lucide-react-native';
 
 const COLORS = ['#FF0000', '#007AFF', '#32D74B', '#FFD600', '#BF5AF2', '#FF9F0A'];
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const [runs, setRuns] = useState<Run[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
 
   const loadData = async () => {
     try {
@@ -47,6 +51,23 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleUpdateName = async () => {
+    if (!newName.trim() || newName.length < 3) {
+      Alert.alert('Error', 'El nombre debe tener al menos 3 caracteres.');
+      return;
+    }
+
+    try {
+      await gamificationService.updateUsername(newName.trim());
+      setProfile({ ...profile, username: newName.trim() });
+      setIsEditingName(false);
+      Alert.alert('¡Hecho!', 'Tu nombre de conquistador ha sido actualizado.');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'No se ha podido actualizar el nombre.');
+    }
+  };
+
   const renderAchievement = ({ item }: { item: Achievement }) => (
     <View style={styles.achievementCard}>
       <View style={styles.achievementIcon}>
@@ -57,14 +78,25 @@ export default function ProfileScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView 
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF0000" />}
       >
         <View style={styles.header}>
           <View style={styles.profileInfo}>
-            <View>
-              <Text style={styles.userName}>{profile?.username || 'Explorador'}</Text>
+            <View style={styles.nameSection}>
+              <View style={styles.nameHeader}>
+                <Text style={styles.userName}>{profile?.username || 'Explorador'}</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setNewName(profile?.username || ''); 
+                    setIsEditingName(true);
+                  }}
+                  style={styles.editIcon}
+                >
+                  <Pencil size={14} color="#555" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.levelBadge}>
                 <Zap size={10} color="#FF0000" />
                 <Text style={styles.levelText}>NIVEL {profile?.level || 1}</Text>
@@ -128,7 +160,41 @@ export default function ProfileScreen() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      <Modal
+        visible={isEditingName}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>CAMBIAR NOMBRE</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="Escribe tu nuevo nombre..."
+              placeholderTextColor="#444"
+              autoFocus={true}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalCancel} 
+                onPress={() => setIsEditingName(false)}
+              >
+                <Text style={styles.cancelText}>CANCELAR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalSave} 
+                onPress={handleUpdateName}
+              >
+                <Text style={styles.saveText}>GUARDAR</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -151,6 +217,24 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 26,
     fontWeight: 'bold',
+  },
+  nameSection: {
+    flex: 1,
+  },
+  nameHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editIcon: {
+    marginLeft: 10,
+    backgroundColor: '#111',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#222',
   },
   levelBadge: {
     flexDirection: 'row',
@@ -267,5 +351,60 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#0A0A0A',
+    width: '100%',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  modalTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'BOLD',
+    letterSpacing: 2,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalInput: {
+    backgroundColor: '#111',
+    borderRadius: 12,
+    padding: 16,
+    color: '#FFF',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalCancel: {
+    padding: 12,
+    marginRight: 10,
+  },
+  modalSave: {
+    backgroundColor: '#FF0000',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  cancelText: {
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  saveText: {
+    color: '#FFF',
+    fontWeight: 'bold',
   }
 });

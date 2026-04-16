@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Mapbox from '@rnmapbox/maps';
 import * as turf from '@turf/turf';
 import { useNavigation } from '@react-navigation/native';
@@ -17,8 +18,20 @@ import { gamificationService } from '../api/gamificationService';
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
 
 const MapScreen = () => {
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const navigation = useNavigation<any>();
-  const { isRecording, startRecording, stopRecording, route, clearRoute } = useRunStore();
+  const { 
+    isRecording, 
+    startRecording, 
+    stopRecording, 
+    route, 
+    clearRoute,
+    totalDistance,
+    duration,
+    currentPace,
+    averagePace
+  } = useRunStore();
   const { currentLocation, errorMsg } = useLocationTracker();
   
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -138,19 +151,36 @@ const MapScreen = () => {
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatPace = (pace: number) => {
+    if (!pace || pace > 30 || pace < 1) return '-:--';
+    const mins = Math.floor(pace);
+    const secs = Math.round((pace - mins) * 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Mapbox.MapView
         style={styles.map}
         styleURL={Mapbox.StyleURL.Dark}
         logoEnabled={false}
+        attributionEnabled={true}
+        attributionPosition={{ bottom: insets.bottom + 80, right: 15 }}
+        scaleBarEnabled={true}
+        scaleBarPosition={{ top: insets.top + 15, left: screenWidth / 2 - 30 }}
         pitchEnabled={true}
       >
         <Mapbox.Camera
-          zoomLevel={isRecording ? 17 : 15}
-          pitch={isRecording ? 70 : 45}
+          followZoomLevel={isRecording ? 18.5 : 15}
+          followPitch={isRecording ? 80 : 45}
           animationDuration={2000}
-          centerCoordinate={currentLocation ? [currentLocation.coords.longitude, currentLocation.coords.latitude] : [0, 0]}
+          animationMode="flyTo"
           followUserLocation={true}
         />
         
@@ -217,7 +247,27 @@ const MapScreen = () => {
         ))}
       </Mapbox.MapView>
 
-      <View style={styles.uiContainer}>
+      {isRecording && (
+        <View style={[styles.statsOverlay, { top: insets.top + 80 }]}>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>TIEMPO</Text>
+            <Text style={styles.statValue}>{formatTime(duration)}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>DISTANCIA</Text>
+            <Text style={styles.statValue}>{(totalDistance / 1000).toFixed(2)} km</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>RITMO</Text>
+            <Text style={styles.statValue}>{formatPace(currentPace)}</Text>
+            <Text style={styles.statSubValue}>Med: {formatPace(averagePace)}</Text>
+          </View>
+        </View>
+      )}
+
+      <View style={[styles.uiContainer, { bottom: insets.bottom + 15 }]}>
         {currentMyTerritory && !isRecording && (
           <TouchableOpacity 
             style={[styles.shieldButton, { borderColor: userColor }]} 
@@ -250,7 +300,7 @@ const MapScreen = () => {
           )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -269,6 +319,51 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  statsOverlay: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#333',
+  },
+  statLabel: {
+    color: '#888',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  statValue: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  statSubValue: {
+    color: '#FF0000',
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginTop: 2,
   },
   button: {
     paddingVertical: 18,

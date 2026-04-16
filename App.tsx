@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './src/lib/supabase';
 import MapScreen from './src/screens/MapScreen';
@@ -36,6 +37,8 @@ function MapStack() {
  * Navegador de pestañas principal.
  */
 function TabNavigator() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tab.Navigator
       screenOptions={{
@@ -43,9 +46,9 @@ function TabNavigator() {
         tabBarStyle: {
           backgroundColor: '#000000',
           borderTopColor: '#111',
-          height: 70,
-          paddingBottom: 12,
-          paddingTop: 8,
+          height: 80 + insets.bottom,
+          paddingBottom: insets.bottom + 10,
+          paddingTop: 12,
         },
         tabBarActiveTintColor: '#FF0000',
         tabBarInactiveTintColor: '#555',
@@ -103,13 +106,15 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      {session && session.user ? (
-        <TabNavigator />
-      ) : (
-        <AuthScreen />
-      )}
-      <StatusBar style="light" />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        {session && session.user ? (
+          <TabNavigator />
+        ) : (
+          <AuthScreen />
+        )}
+        <StatusBar style="light" />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

@@ -12,13 +12,26 @@ import RankingScreen from './src/screens/RankingScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
+import AchievementsScreen from './src/screens/AchievementsScreen';
+import ActivitiesHistoryScreen from './src/screens/ActivitiesHistoryScreen';
 import { Map as MapIcon, Trophy, MessageSquare, User } from 'lucide-react-native';
+import { 
+  useFonts, 
+  Outfit_400Regular, 
+  Outfit_500Medium, 
+  Outfit_600SemiBold, 
+  Outfit_700Bold, 
+  Outfit_900Black 
+} from '@expo-google-fonts/outfit';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 /**
- * Stack para la pestaña de Mapa (Permite navegar al Resumen)
+ * Stack para la pestaña de Mapa
  */
 function MapStack() {
   return (
@@ -29,6 +42,19 @@ function MapStack() {
         component={SummaryScreen} 
         options={{ animation: 'slide_from_bottom' }}
       />
+    </Stack.Navigator>
+  );
+}
+
+/**
+ * Stack para la pestaña de Perfil
+ */
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="Achievements" component={AchievementsScreen} />
+      <Stack.Screen name="ActivitiesHistory" component={ActivitiesHistoryScreen} />
     </Stack.Navigator>
   );
 }
@@ -81,7 +107,7 @@ function TabNavigator() {
       />
       <Tab.Screen 
         name="Perfil" 
-        component={ProfileScreen} 
+        component={ProfileStack} 
         options={{
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
@@ -92,6 +118,14 @@ function TabNavigator() {
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
+  
+  const [fontsLoaded, fontError] = useFonts({
+    'Outfit-Regular': Outfit_400Regular,
+    'Outfit-Medium': Outfit_500Medium,
+    'Outfit-SemiBold': Outfit_600SemiBold,
+    'Outfit-Bold': Outfit_700Bold,
+    'Outfit-Black': Outfit_900Black,
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -104,6 +138,16 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>

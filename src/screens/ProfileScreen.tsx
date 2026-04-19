@@ -34,9 +34,9 @@ export const ProfileScreen = () => {
       setProfile(p);
       
       // Fetch actual run stats
-      const { data: runs } = await supabase.from('runs').select('distance, duration, created_at');
+      const { data: runs } = await supabase.from('runs').select('distance_meters, duration, created_at');
       if (runs) {
-        const totalDist = runs.reduce((acc, r) => acc + r.distance, 0);
+        const totalDist = runs.reduce((acc, r) => acc + (r.distance_meters || 0), 0);
         setStats(prev => ({ 
           ...prev, 
           totalDistance: totalDist,
@@ -64,7 +64,22 @@ export const ProfileScreen = () => {
     }
   };
 
-  if (loading) return <View style={styles.loading}><ActivityIndicator color="#FF0000" /></View>;
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro de que quieres salir de Runquer?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Salir", style: "destructive", onPress: () => supabase.auth.signOut() }
+      ]
+    );
+  };
+
+  const handleSocial = () => {
+    navigation.navigate('Chat');
+  };
+
+  if (loading) return <View style={styles.loading}><ActivityIndicator color="#00F3FF" /></View>;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top }}>
@@ -109,10 +124,10 @@ export const ProfileScreen = () => {
           yAxisSuffix="km"
           chartConfig={{
             backgroundColor: '#000',
-            backgroundGradientFrom: '#111',
-            backgroundGradientTo: '#111',
+            backgroundGradientFrom: '#0A0B14',
+            backgroundGradientTo: '#0A0B14',
             decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`,
+            color: (opacity = 1) => `rgba(0, 243, 255, ${opacity})`,
             labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
             style: { borderRadius: 16 },
             propsForBackgroundLines: { strokeWidth: 0.5, stroke: '#222' }
@@ -130,28 +145,28 @@ export const ProfileScreen = () => {
         </View>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>ÁREA CONQUISTADA</Text>
-          <Text style={styles.kpiValue}>{Math.round((profile?.total_area || 0) / 100).toFixed(0)} <Text style={{fontSize: 12}}>Ha</Text></Text>
+          <Text style={styles.kpiValue}>{Math.round((profile?.total_area || 0) / 1000000).toFixed(2)} <Text style={{fontSize: 12}}>km²</Text></Text>
         </View>
       </View>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ActivitiesHistory')}>
-          <History size={20} color="#FF0000" />
+          <History size={20} color="#FF007F" />
           <Text style={styles.actionText}>Cronología</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Achievements')}>
-          <Trophy size={20} color="#FFD700" />
-          <Text style={styles.actionText}>Logros</Text>
+          <Trophy size={20} color="#00F3FF" />
+          <Text style={styles.actionText}>Récords</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Users size={20} color="#007AFF" />
+        <TouchableOpacity style={styles.actionButton} onPress={handleSocial}>
+          <Users size={20} color="#FFD700" />
           <Text style={styles.actionText}>Social</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.settingsButton}>
+      <TouchableOpacity style={styles.settingsButton} onPress={handleLogout}>
         <Settings size={20} color="#888" />
-        <Text style={styles.settingsText}>Configuración del Perfil</Text>
+        <Text style={styles.settingsText}>Cerrar Sesión</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -162,11 +177,11 @@ const styles = StyleSheet.create({
   loading: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
   header: { alignItems: 'center', padding: 20 },
   avatarContainer: { position: 'relative', marginBottom: 15 },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#FF0000' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#FF0000', padding: 6, borderRadius: 15 },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#00F3FF' },
+  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#00F3FF', padding: 6, borderRadius: 15 },
   name: { color: '#FFF', fontSize: 24, fontFamily: 'Outfit-Black' },
   bio: { color: '#888', fontSize: 14, fontFamily: 'Outfit-Regular', marginTop: 5 },
-  socialRow: { flexDirection: 'row', marginTop: 20, backgroundColor: '#111', padding: 15, borderRadius: 20, width: '90%' },
+  socialRow: { flexDirection: 'row', marginTop: 20, backgroundColor: '#0A0B14', padding: 15, borderRadius: 20, width: '90%' },
   socialStat: { flex: 1, alignItems: 'center' },
   socialValue: { color: '#FFF', fontSize: 18, fontFamily: 'Outfit-Bold' },
   socialLabel: { color: '#666', fontSize: 12, fontFamily: 'Outfit-Regular' },
@@ -175,13 +190,13 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#666', fontSize: 12, fontFamily: 'Outfit-Bold', letterSpacing: 1, marginBottom: 15 },
   chart: { borderRadius: 16, marginVertical: 8 },
   kpiContainer: { flexDirection: 'row', paddingHorizontal: 20, justifyContent: 'space-between' },
-  kpiCard: { backgroundColor: '#111', width: '48%', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#222' },
+  kpiCard: { backgroundColor: '#0A0B14', width: '48%', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#222' },
   kpiLabel: { color: '#888', fontSize: 10, fontFamily: 'Outfit-Bold', letterSpacing: 1 },
   kpiValue: { color: '#FFF', fontSize: 22, fontFamily: 'Outfit-Black', marginTop: 5 },
   actions: { padding: 20, flexDirection: 'row', justifyContent: 'space-between' },
-  actionButton: { backgroundColor: '#111', padding: 20, borderRadius: 20, alignItems: 'center', width: '31%', borderWidth: 1, borderColor: '#222' },
+  actionButton: { backgroundColor: '#0A0B14', padding: 20, borderRadius: 20, alignItems: 'center', width: '31%', borderWidth: 1, borderColor: '#222' },
   actionText: { color: '#FFF', fontSize: 10, fontFamily: 'Outfit-Bold', marginTop: 8 },
-  settingsButton: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', marginTop: 10, marginBottom: 30, padding: 15, backgroundColor: '#111', borderRadius: 20, width: '90%', justifyContent: 'center' },
+  settingsButton: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', marginTop: 10, marginBottom: 30, padding: 15, backgroundColor: '#0A0B14', borderRadius: 20, width: '90%', justifyContent: 'center' },
   settingsText: { color: '#888', fontSize: 14, marginLeft: 10, fontFamily: 'Outfit-Medium' }
 });
 

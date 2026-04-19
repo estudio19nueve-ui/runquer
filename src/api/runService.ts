@@ -5,6 +5,7 @@ export interface Run {
   path: any;
   area_sqm: number;
   distance_meters: number;
+  duration: number; // segundos
   created_at: string;
 }
 
@@ -25,11 +26,12 @@ export const runService = {
   /**
    * Guarda una nueva carrera en el historial.
    */
-  async saveRun(path: any, area: number, distance: number = 0): Promise<void> {
+  async saveRun(path: any, area: number, distance: number = 0, duration: number = 0): Promise<void> {
     const { error } = await supabase.from('runs').insert({
       path: path,
       area_sqm: area,
       distance_meters: distance,
+      duration: duration,
       user_id: (await supabase.auth.getUser()).data.user?.id
     });
 

@@ -40,8 +40,6 @@ export default function AuthScreen() {
 
       <View style={styles.inputContainer}>
         <TextInput
-          label="Email"
-          leftIcon={{ type: 'font-awesome', name: 'envelope' }}
           onChangeText={(text) => setEmail(text)}
           value={email}
           placeholder="email@address.com"
@@ -52,8 +50,6 @@ export default function AuthScreen() {
       </View>
       <View style={styles.inputContainer}>
         <TextInput
-          label="Password"
-          leftIcon={{ type: 'font-awesome', name: 'lock' }}
           onChangeText={(text) => setPassword(text)}
           value={password}
           secureTextEntry={true}
@@ -95,7 +91,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 42,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Black',
     color: '#FF0000',
     textAlign: 'center',
     letterSpacing: 4,
@@ -105,6 +101,7 @@ const styles = StyleSheet.create({
     color: '#888888',
     textAlign: 'center',
     marginBottom: 40,
+    fontFamily: 'Outfit-Medium',
     letterSpacing: 2,
   },
   inputContainer: {
@@ -116,6 +113,7 @@ const styles = StyleSheet.create({
   input: {
     height: 50,
     color: '#FFF',
+    fontFamily: 'Outfit-Regular',
   },
   verticallyCentered: {
     alignSelf: 'stretch',
@@ -135,11 +133,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFF',
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
     fontSize: 16,
   },
   buttonSecondaryText: {
     color: '#888',
+    fontFamily: 'Outfit-Medium',
     fontSize: 14,
   },
 });

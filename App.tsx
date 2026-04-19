@@ -5,6 +5,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Session } from '@supabase/supabase-js';
+import { View, ActivityIndicator } from 'react-native';
+import Mapbox from '@rnmapbox/maps';
+
 import { supabase } from './src/lib/supabase';
 import MapScreen from './src/screens/MapScreen';
 import AuthScreen from './src/screens/AuthScreen';
@@ -14,6 +17,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 import AchievementsScreen from './src/screens/AchievementsScreen';
 import ActivitiesHistoryScreen from './src/screens/ActivitiesHistoryScreen';
+
 import { Map as MapIcon, Trophy, MessageSquare, User } from 'lucide-react-native';
 import { 
   useFonts, 
@@ -25,14 +29,14 @@ import {
 } from '@expo-google-fonts/outfit';
 import * as SplashScreen from 'expo-splash-screen';
 
+// Configuración global de Mapbox
+Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
+
 SplashScreen.preventAutoHideAsync();
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-/**
- * Stack para la pestaña de Mapa
- */
 function MapStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -46,9 +50,6 @@ function MapStack() {
   );
 }
 
-/**
- * Stack para la pestaña de Perfil
- */
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -59,9 +60,6 @@ function ProfileStack() {
   );
 }
 
-/**
- * Navegador de pestañas principal.
- */
 function TabNavigator() {
   const insets = useSafeAreaInsets();
   
@@ -76,11 +74,11 @@ function TabNavigator() {
           paddingBottom: insets.bottom + 10,
           paddingTop: 12,
         },
-        tabBarActiveTintColor: '#FF0000',
+        tabBarActiveTintColor: '#00F3FF',
         tabBarInactiveTintColor: '#555',
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: 'bold',
+          fontFamily: 'Outfit-Bold',
         }
       }}
     >
@@ -119,7 +117,7 @@ function TabNavigator() {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   
-  const [fontsLoaded, fontError] = useFonts({
+  const [fontsLoaded] = useFonts({
     'Outfit-Regular': Outfit_400Regular,
     'Outfit-Medium': Outfit_500Medium,
     'Outfit-SemiBold': Outfit_600SemiBold,
@@ -140,13 +138,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded]);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color="#FF0000" size="large" />
+      </View>
+    );
   }
 
   return (

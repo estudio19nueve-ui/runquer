@@ -50,8 +50,8 @@ export default function RankingScreen() {
       </View>
 
       <View style={styles.areaInfo}>
-        <Text style={styles.areaAmount}>{Math.round(item.total_area_sqm).toLocaleString()}</Text>
-        <Text style={styles.areaUnit}>m²</Text>
+        <Text style={styles.areaAmount}>{(item.total_area_sqm / 1000000).toFixed(4)}</Text>
+        <Text style={styles.areaUnit}>km²</Text>
       </View>
     </View>
   );
@@ -72,8 +72,8 @@ export default function RankingScreen() {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh} 
-            tintColor="#FF0000" 
-            colors={['#FF0000']} 
+            tintColor="#00F3FF" 
+            colors={['#00F3FF']} 
           />
         }
         ListEmptyComponent={
@@ -98,13 +98,13 @@ const styles = StyleSheet.create({
   title: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '900',
+    fontFamily: 'Outfit-Black',
     letterSpacing: 2,
   },
   headerAccent: {
     height: 4,
     width: 60,
-    backgroundColor: '#FF0000',
+    backgroundColor: '#00F3FF',
     marginTop: 8,
     borderRadius: 2,
   },
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   rankItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111111',
+    backgroundColor: '#0A0B14',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     color: '#888888',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
   },
   userInfo: {
     flex: 1,
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   username: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
   },
   statsRow: {
     flexDirection: 'row',
@@ -148,18 +148,20 @@ const styles = StyleSheet.create({
   territories: {
     color: '#888888',
     fontSize: 12,
+    fontFamily: 'Outfit-Medium',
   },
   areaInfo: {
     alignItems: 'flex-end',
   },
   areaAmount: {
-    color: '#FF0000',
+    color: '#00F3FF',
     fontSize: 18,
-    fontWeight: '900',
+    fontFamily: 'Outfit-Black',
   },
   areaUnit: {
     color: '#888888',
     fontSize: 10,
+    fontFamily: 'Outfit-Medium',
     textTransform: 'uppercase',
   },
   emptyContainer: {
@@ -169,5 +171,6 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#444444',
     fontSize: 16,
+    fontFamily: 'Outfit-Medium',
   },
 });

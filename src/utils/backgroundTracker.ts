@@ -47,7 +47,7 @@ export const startBackgroundTracking = async () => {
     foregroundService: {
       notificationTitle: "Runquer: Conquista Activa",
       notificationBody: "Registrando tu ruta en segundo plano...",
-      notificationColor: "#FF0000",
+      notificationColor: "#00F3FF",
     },
     activityType: Location.ActivityType.Fitness,
     showsBackgroundLocationIndicator: true,

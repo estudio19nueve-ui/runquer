@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#FFF',
     fontSize: 22,
-    fontWeight: '900',
+    fontFamily: 'Outfit-Black',
     letterSpacing: 1,
   },
   tabContainer: {
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   tabText: {
     color: '#666',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
     marginLeft: 8,
   },
   tabTextActive: {
@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
   locationText: {
     color: '#888',
     fontSize: 12,
+    fontFamily: 'Outfit-Medium',
   },
   messageBubble: {
     backgroundColor: '#111',
@@ -231,16 +232,18 @@ const styles = StyleSheet.create({
   messageUser: {
     color: '#FF0000',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
     marginBottom: 4,
   },
   messageContent: {
     color: '#DDD',
     fontSize: 15,
+    fontFamily: 'Outfit-Regular',
   },
   messageTime: {
     color: '#555',
     fontSize: 10,
+    fontFamily: 'Outfit-Medium',
     marginTop: 6,
     textAlign: 'right',
   },
@@ -267,11 +270,13 @@ const styles = StyleSheet.create({
   feedText: {
     color: '#FFF',
     fontSize: 14,
+    fontFamily: 'Outfit-Regular',
     lineHeight: 20,
   },
   feedTime: {
     color: '#555',
     fontSize: 10,
+    fontFamily: 'Outfit-Medium',
     marginTop: 5,
   },
   inputArea: {
@@ -287,6 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 15,
     color: '#FFF',
+    fontFamily: 'Outfit-Regular',
     marginRight: 10,
   },
   sendButton: {
@@ -301,5 +307,6 @@ const styles = StyleSheet.create({
     color: '#444',
     textAlign: 'center',
     marginTop: 40,
+    fontFamily: 'Outfit-Medium',
   }
 });

@@ -14,18 +14,19 @@ interface Achievement {
 }
 
 const DISTANCE_GOALS = [
-  { name: '1 km', value: 1000 },
-  { name: '5 km', value: 5000 },
-  { name: '10 km', value: 10000 },
+  { name: 'Mejor 1 km', value: 1000 },
+  { name: 'Mejor 5 km', value: 5000 },
+  { name: 'Mejor 10 km', value: 10000 },
   { name: 'Media Maratón', value: 21097 },
   { name: 'Maratón', value: 42195 },
+  { name: 'Ultra 100 km', value: 100000 },
 ];
 
 export const AchievementsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
-  const [records, setRecords] = useState<any[]>([]);
+  const [records, setRecords] = useState<any[]>(DISTANCE_GOALS.map(g => ({ ...g, time: null })));
 
   useEffect(() => {
     fetchRecords();
@@ -36,19 +37,33 @@ export const AchievementsScreen = () => {
       const { data: runs, error } = await supabase
         .from('runs')
         .select('*')
-        .order('duration', { ascending: true });
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Error fetching records (common if table is empty or missing columns):', error);
+        setLoading(false);
+        return;
+      }
 
-      // Lógica simplificada de mejores marcas
+      // Lógica de mejores marcas (reforzada contra crashes)
       const bests = DISTANCE_GOALS.map(goal => {
-        const matchingRuns = runs.filter(run => run.distance >= goal.value - 50); // Margen de error GPS
+        const matchingRuns = runs.filter(run => 
+          (run.distance_meters || 0) >= goal.value - 100 && 
+          (run.duration || 0) > 0
+        );
+
         if (matchingRuns.length > 0) {
-          // Calculamos el ritmo proporcional
-          const best = matchingRuns[0];
+          // Buscamos la más rápida con protección contra división por cero
+          const sorted = matchingRuns.sort((a, b) => {
+            const paceA = (a.duration || 0) / (a.distance_meters || 1);
+            const paceB = (b.duration || 0) / (b.distance_meters || 1);
+            return paceA - paceB;
+          });
+          
+          const best = sorted[0];
           return {
             ...goal,
-            time: best.duration * (goal.value / best.distance),
+            time: (best.duration || 0) * (goal.value / (best.distance_meters || 1)),
             date: new Date(best.created_at).toLocaleDateString()
           };
         }
@@ -57,7 +72,7 @@ export const AchievementsScreen = () => {
 
       setRecords(bests);
     } catch (e) {
-      console.error(e);
+      console.error('Crash preventing records fetch:', e);
     } finally {
       setLoading(false);
     }
@@ -77,23 +92,23 @@ export const AchievementsScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft color="#FFF" size={28} />
         </TouchableOpacity>
-        <Text style={styles.title}>LOGROS</Text>
+        <Text style={styles.title}>RÉCORDS</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.trophyHero}>
-          <Trophy color="#FFD700" size={60} />
-          <Text style={styles.heroText}>Tus Mejores Marcas</Text>
+          <Trophy color="#00F3FF" size={60} />
+          <Text style={styles.heroText}>Tu Salón de la Fama</Text>
         </View>
 
         {loading ? (
-          <ActivityIndicator color="#FF0000" size="large" style={{ marginTop: 40 }} />
+          <ActivityIndicator color="#00F3FF" size="large" style={{ marginTop: 40 }} />
         ) : (
           records.map((item, index) => (
             <View key={index} style={styles.recordCard}>
               <View style={styles.recordIcon}>
-                <Zap color={item.time ? "#FFD700" : "#333"} size={20} />
+                <Zap color={item.time ? "#FF007F" : "#333"} size={20} />
               </View>
               <View style={styles.recordInfo}>
                 <Text style={styles.recordName}>{item.name}</Text>
@@ -115,12 +130,12 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
   title: { color: '#FFF', fontSize: 20, fontFamily: 'Outfit-Black', letterSpacing: 2 },
   scroll: { padding: 20 },
-  trophyHero: { alignItems: 'center', marginBottom: 30, backgroundColor: '#111', padding: 30, borderRadius: 24, borderWidth: 1, borderColor: '#222' },
+  trophyHero: { alignItems: 'center', marginBottom: 30, backgroundColor: '#0A0B14', padding: 30, borderRadius: 24, borderWidth: 1, borderColor: '#222' },
   heroText: { color: '#FFF', fontSize: 18, fontFamily: 'Outfit-Bold', marginTop: 10 },
   recordCard: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: '#111', 
+    backgroundColor: '#0A0B14', 
     padding: 20, 
     borderRadius: 20, 
     marginBottom: 12, 
@@ -131,7 +146,7 @@ const styles = StyleSheet.create({
   recordInfo: { flex: 1, marginLeft: 15 },
   recordName: { color: '#FFF', fontSize: 16, fontFamily: 'Outfit-Bold' },
   recordDate: { color: '#666', fontSize: 12, fontFamily: 'Outfit-Regular', marginTop: 2 },
-  recordTime: { color: '#FF0000', fontSize: 22, fontFamily: 'Outfit-Black' }
+  recordTime: { color: '#00F3FF', fontSize: 22, fontFamily: 'Outfit-Black' }
 });
 
 export default AchievementsScreen;

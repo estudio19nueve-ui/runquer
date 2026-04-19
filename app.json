@@ -17,6 +17,9 @@
       "bundleIdentifier": "com.runquer.app",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPList": {
+        "UIBackgroundModes": ["location", "fetch"]
       }
     },
     "android": {
@@ -29,7 +32,10 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -48,7 +54,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Runquer necesita tu ubicación para registrar tus rutas y conquistar territorios."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

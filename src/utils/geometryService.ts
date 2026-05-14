@@ -1,5 +1,6 @@
 import * as turf from '@turf/turf';
 import { Position } from '../store/useRunStore';
+import { Feature, Polygon } from 'geojson';
 
 export const MIN_AREA_SQM = 500;
 export const MAX_LOOP_DISTANCE_M = 50;
@@ -26,7 +27,7 @@ export const geometryService = {
    * Convierte una serie de puntos en un polígono y calcula su área.
    */
   createAndValidatePolygon: (route: Position[]): { 
-    polygon: turf.helpers.Feature<turf.helpers.Polygon> | null, 
+    polygon: Feature<Polygon> | null, 
     area: number, 
     isValid: boolean 
   } => {
@@ -57,8 +58,8 @@ export const geometryService = {
    * @param defenderLayers Capas actuales del defensor
    */
   calculateCombatOutcome: (
-    attackerPoly: turf.helpers.Feature<turf.helpers.Polygon>, 
-    defenderPoly: turf.helpers.Feature<turf.helpers.Polygon>, 
+    attackerPoly: Feature<Polygon>, 
+    defenderPoly: Feature<Polygon>, 
     defenderLayers: number
   ) => {
     // Verificar si hay solapamiento real
@@ -74,8 +75,8 @@ export const geometryService = {
       };
     } else {
       // Robo total: Recortamos el área del defensor y la sumamos al atacante
-      const newDefenderPoly = turf.difference(defenderPoly, attackerPoly);
-      const newAttackerPoly = turf.union(attackerPoly, defenderPoly);
+      const newDefenderPoly = turf.difference(turf.featureCollection([defenderPoly, attackerPoly]));
+      const newAttackerPoly = turf.union(turf.featureCollection([attackerPoly, defenderPoly]));
 
       return {
         type: 'STEAL',

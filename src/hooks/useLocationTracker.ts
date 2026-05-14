@@ -1,87 +1,108 @@
+import { useEffect, useState } from 'react';
 import * as Location from 'expo-location';
-import { useEffect, useState, useRef } from 'react';
-import * as turf from '@turf/turf';
 import { useRunStore } from '../store/useRunStore';
+import { LOCATION_TASK_NAME } from '../services/locationTask';
 
-/**
- * Hook para rastrear la ubicación del usuario y actualizar el store de la carrera.
- */
 export const useLocationTracker = () => {
-  const { isRecording, addPosition, updateStats, startTime, route, totalDistance } = useRunStore();
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
-  const lastPositionRef = useRef<[number, number] | null>(null);
+  const { isRecording, startTime, updateStats } = useRunStore();
+  const [currentLocation, setCurrentLocation] = useState<any>(null);
 
   useEffect(() => {
-    let subscription: Location.LocationSubscription | null = null;
-    let timer: NodeJS.Timeout | null = null;
-
-    if (isRecording && startTime) {
-      timer = setInterval(() => {
-        const now = Date.now();
-        const durationSeconds = Math.floor((now - startTime) / 1000);
-        
-        // Calcular ritmo medio (min/km)
-        let averagePace = 0;
-        if (totalDistance > 5) {
-          averagePace = (durationSeconds / 60) / (totalDistance / 1000);
-        }
-
-        updateStats({ duration: durationSeconds, averagePace });
-      }, 1000);
-    }
-
-    const startWatching = async () => {
+    let locationSubscription: Location.LocationSubscription | null = null;
+    
+    const initForegroundLocation = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorMsg('Permiso de ubicación denegado');
-        return;
-      }
+      if (status !== 'granted') return;
+      
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setCurrentLocation({ coords: loc.coords });
 
-      subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000, 
-          distanceInterval: 5, 
+      // SIEMPRE actualizamos currentLocation (también durante la grabación)
+      // El store (ruta) lo gestiona locationTask.ts en background
+      // Aquí solo necesitamos los datos de ubicación para calcular el ritmo en la UI
+      locationSubscription = await Location.watchPositionAsync(
+        { 
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 5,
+          timeInterval: 1000,
         },
-        (location) => {
-          const newPos: [number, number] = [location.coords.longitude, location.coords.latitude];
-          setCurrentLocation(location);
-          
-          if (isRecording) {
-            let distanceInc = 0;
-            if (lastPositionRef.current) {
-              const from = turf.point(lastPositionRef.current);
-              const to = turf.point(newPos);
-              distanceInc = turf.distance(from, to, { units: 'meters' });
-            }
-            
-            // Ritmo actual (muy simplificado, basado en el último intervalo)
-            // En una versión real usaríamos una cola de los últimos 20 seg.
-            let currentPace = 0;
-            if (distanceInc > 0.5) {
-               // ritmo = (tiempo_en_min) / (dist_en_km)
-               const timeInMin = 2 / 60; // timeInterval es 2000ms
-               currentPace = timeInMin / (distanceInc / 1000);
-            }
-
-            addPosition(newPos, distanceInc);
-            updateStats({ currentPace });
-            lastPositionRef.current = newPos;
-          } else {
-            lastPositionRef.current = null;
-          }
+        (loc) => {
+          setCurrentLocation({ coords: loc.coords });
         }
       );
     };
 
-    startWatching();
+    initForegroundLocation();
 
     return () => {
-      if (subscription) subscription.remove();
+      if (locationSubscription) locationSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+
+    async function startTracking() {
+      const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
+      if (fgStatus !== 'granted') {
+        console.warn('Foreground location permission denied');
+        return;
+      }
+
+      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+      if (bgStatus !== 'granted') {
+        console.warn('Background location permission denied');
+        return;
+      }
+
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.BestForNavigation,
+        distanceInterval: 5,          // Mínimo 5m entre puntos
+        timeInterval: 3000,           // Máximo 3 segundos entre puntos
+        showsBackgroundLocationIndicator: true,
+        pausesUpdatesAutomatically: false,  // Nunca pausar el GPS automáticamente
+        activityType: Location.ActivityType.Fitness, // iOS: optimizado para running
+        foregroundService: {
+          notificationTitle: "Runquer",
+          notificationBody: "Registrando tu ruta en segundo plano...",
+          notificationColor: "#FF0000",
+        },
+      });
+
+      console.log("[Location] Background tracking started successfully");
+    }
+
+    async function stopTracking() {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (hasStarted) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+        console.log("[Location] Background tracking stopped");
+      }
+    }
+
+    if (isRecording && startTime) {
+      startTracking();
+      
+      timer = setInterval(() => {
+        const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
+        const { totalDistance } = useRunStore.getState();
+        
+        let averagePace = 0;
+        if (totalDistance > 50 && durationSeconds > 10) {
+          averagePace = (durationSeconds / 60) / (totalDistance / 1000);
+        }
+        
+        updateStats({ duration: durationSeconds, averagePace });
+      }, 1000);
+
+    } else {
+      stopTracking();
+    }
+
+    return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isRecording, addPosition, updateStats, startTime, totalDistance]);
+  }, [isRecording, startTime]);
 
-  return { errorMsg, currentLocation };
+  return { currentLocation };
 };

@@ -16,14 +16,73 @@ export const gamificationService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('experience, level, territory_color, username')
-      .eq('id', user.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, experience, level, territory_color, username, total_area, followers_count, following_count, avatar_url')
+        .eq('id', user.id)
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.warn('Error fetching detailed profile:', error);
+        // Fallback simple si fallan las columnas nuevas
+        const { data: basicData } = await supabase
+          .from('profiles')
+          .select('id, username, territory_color, avatar_url')
+          .eq('id', user.id)
+          .single();
+        return basicData;
+      }
+      return data;
+    } catch (e) {
+      console.error('Crash in getMyProfile:', e);
+      return null;
+    }
+  },
+
+  async uploadAvatar(uri: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const fileName = `${user.id}/${Date.now()}.jpg`;
+      
+      // 1. Preparar FormData (Método estándar de React Native)
+      const formData = new FormData();
+      formData.append('file', {
+        uri: uri,
+        name: fileName,
+        type: 'image/jpeg',
+      } as any);
+
+      // 2. Subir a Supabase Storage
+      const { data, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, formData, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // 3. Obtener la URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // 4. Actualizar el perfil
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
   },
 
   async updateTerritoryColor(color: string) {
@@ -62,7 +121,7 @@ export const gamificationService = {
     if (error) throw error;
     
     return data.map(ua => ({
-      ...ua.achievements,
+      ...(ua.achievements as any),
       earned_at: ua.earned_at
     })) as Achievement[];
   }

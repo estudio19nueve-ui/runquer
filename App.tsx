@@ -17,6 +17,9 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 import AchievementsScreen from './src/screens/AchievementsScreen';
 import ActivitiesHistoryScreen from './src/screens/ActivitiesHistoryScreen';
+import SocialListScreen from './src/screens/SocialListScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
+import ActivityDetailScreen from './src/screens/ActivityDetailScreen';
 
 import { Map as MapIcon, Trophy, MessageSquare, User } from 'lucide-react-native';
 import { 
@@ -28,6 +31,7 @@ import {
   Outfit_900Black 
 } from '@expo-google-fonts/outfit';
 import * as SplashScreen from 'expo-splash-screen';
+import './src/services/locationTask'; // Import to define TaskManager globally
 
 // Configuración global de Mapbox
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
@@ -56,6 +60,7 @@ function ProfileStack() {
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="Achievements" component={AchievementsScreen} />
       <Stack.Screen name="ActivitiesHistory" component={ActivitiesHistoryScreen} />
+      <Stack.Screen name="SocialList" component={SocialListScreen} />
     </Stack.Navigator>
   );
 }
@@ -114,6 +119,18 @@ function TabNavigator() {
   );
 }
 
+const MainStack = createNativeStackNavigator();
+
+function AppStack() {
+  return (
+    <MainStack.Navigator screenOptions={{ headerShown: false }}>
+      <MainStack.Screen name="Tabs" component={TabNavigator} />
+      <MainStack.Screen name="UserProfile" component={UserProfileScreen} />
+      <MainStack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+    </MainStack.Navigator>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   
@@ -126,6 +143,7 @@ export default function App() {
   });
 
   useEffect(() => {
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -155,7 +173,7 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer>
         {session && session.user ? (
-          <TabNavigator />
+          <AppStack />
         ) : (
           <AuthScreen />
         )}

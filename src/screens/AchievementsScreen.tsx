@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Trophy, ChevronLeft, Timer, MapPin, Zap } from 'lucide-react-native';
+import { Trophy, ChevronLeft, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 
@@ -22,11 +22,12 @@ const DISTANCE_GOALS = [
   { name: 'Ultra 100 km', value: 100000 },
 ];
 
-export const AchievementsScreen = () => {
+export default function AchievementsScreen() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<any[]>(DISTANCE_GOALS.map(g => ({ ...g, time: null })));
+  const [allRuns, setAllRuns] = useState<any[]>([]);
 
   useEffect(() => {
     fetchRecords();
@@ -40,12 +41,13 @@ export const AchievementsScreen = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Error fetching records (common if table is empty or missing columns):', error);
+        console.warn('Error fetching records:', error);
         setLoading(false);
         return;
       }
 
-      // Lógica de mejores marcas (reforzada contra crashes)
+      setAllRuns(runs || []);
+
       const bests = DISTANCE_GOALS.map(goal => {
         const matchingRuns = runs.filter(run => 
           (run.distance_meters || 0) >= goal.value - 100 && 
@@ -53,7 +55,6 @@ export const AchievementsScreen = () => {
         );
 
         if (matchingRuns.length > 0) {
-          // Buscamos la más rápida con protección contra división por cero
           const sorted = matchingRuns.sort((a, b) => {
             const paceA = (a.duration || 0) / (a.distance_meters || 1);
             const paceB = (b.duration || 0) / (b.distance_meters || 1);
@@ -63,6 +64,7 @@ export const AchievementsScreen = () => {
           const best = sorted[0];
           return {
             ...goal,
+            runId: best.id,
             time: (best.duration || 0) * (goal.value / (best.distance_meters || 1)),
             date: new Date(best.created_at).toLocaleDateString()
           };
@@ -75,6 +77,14 @@ export const AchievementsScreen = () => {
       console.error('Crash preventing records fetch:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePressRecord = (runId: string) => {
+    if (!runId) return;
+    const activity = allRuns.find(r => r.id === runId);
+    if (activity) {
+      navigation.navigate('ActivityDetail', { activity });
     }
   };
 
@@ -106,7 +116,12 @@ export const AchievementsScreen = () => {
           <ActivityIndicator color="#00F3FF" size="large" style={{ marginTop: 40 }} />
         ) : (
           records.map((item, index) => (
-            <View key={index} style={styles.recordCard}>
+            <TouchableOpacity 
+              key={index} 
+              style={styles.recordCard}
+              onPress={() => handlePressRecord(item.runId)}
+              disabled={!item.runId}
+            >
               <View style={styles.recordIcon}>
                 <Zap color={item.time ? "#FF007F" : "#333"} size={20} />
               </View>
@@ -117,13 +132,13 @@ export const AchievementsScreen = () => {
               <Text style={[styles.recordTime, !item.time && { color: '#333' }]}>
                 {item.time ? formatTime(item.time) : '--:--'}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
@@ -148,5 +163,3 @@ const styles = StyleSheet.create({
   recordDate: { color: '#666', fontSize: 12, fontFamily: 'Outfit-Regular', marginTop: 2 },
   recordTime: { color: '#00F3FF', fontSize: 22, fontFamily: 'Outfit-Black' }
 });
-
-export default AchievementsScreen;

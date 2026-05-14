@@ -43,11 +43,31 @@ export default function SummaryScreen({ route, navigation }: any) {
             scaleBarEnabled={false}
             attributionEnabled={false}
           >
-            <Mapbox.Camera
-              centerCoordinate={routePath && routePath.length > 1 ? routePath[Math.floor(routePath.length / 2)] : [0, 0]}
-              zoomLevel={15.5}
-              animationDuration={0}
-            />
+            {routePath && routePath.length > 1 ? (
+              <Mapbox.Camera
+                bounds={{
+                  ne: [
+                    routePath.reduce((max, c) => Math.max(max, c[0]), routePath[0][0]),
+                    routePath.reduce((max, c) => Math.max(max, c[1]), routePath[0][1])
+                  ],
+                  sw: [
+                    routePath.reduce((min, c) => Math.min(min, c[0]), routePath[0][0]),
+                    routePath.reduce((min, c) => Math.min(min, c[1]), routePath[0][1])
+                  ],
+                  paddingTop: 40,
+                  paddingRight: 40,
+                  paddingBottom: 40,
+                  paddingLeft: 40,
+                }}
+                animationDuration={0}
+              />
+            ) : (
+              <Mapbox.Camera
+                centerCoordinate={routePath && routePath.length > 1 ? routePath[Math.floor(routePath.length / 2)] : [0, 0]}
+                zoomLevel={15.5}
+                animationDuration={0}
+              />
+            )}
 
             <Mapbox.VectorSource id="neonSummarySource" url="mapbox://mapbox.mapbox-streets-v8">
               <Mapbox.LineLayer
@@ -63,7 +83,7 @@ export default function SummaryScreen({ route, navigation }: any) {
             </Mapbox.VectorSource>
 
             {routePath && routePath.length > 1 && (
-              <Mapbox.ShapeSource id="routeSourceSummary" shape={{ type: 'Feature', geometry: { type: 'LineString', coordinates: routePath } }}>
+              <Mapbox.ShapeSource id="routeSourceSummary" shape={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: routePath } }}>
                 <Mapbox.LineLayer 
                   id="routeLayerSummary" 
                   style={{ 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type Position = [number, number]; // [longitude, latitude]
+export type Position = [number, number, number]; // [longitude, latitude, timestamp]
 
 interface RunState {
   isRecording: boolean;
@@ -9,11 +9,12 @@ interface RunState {
   duration: number; // en segundos
   currentPace: number; // min/km
   averagePace: number; // min/km
+  lastKmPace: string; // MM:SS
   startTime: number | null;
   startRecording: () => void;
   stopRecording: () => void;
-  addPosition: (pos: Position, distanceInc: number) => void;
-  updateStats: (stats: Partial<Pick<RunState, 'totalDistance' | 'duration' | 'currentPace' | 'averagePace'>>) => void;
+  addPosition: (pos: [number, number]) => void;
+  updateStats: (stats: Partial<Pick<RunState, 'totalDistance' | 'duration' | 'currentPace' | 'averagePace' | 'lastKmPace'>>) => void;
   clearRoute: () => void;
 }
 
@@ -24,6 +25,7 @@ export const useRunStore = create<RunState>((set) => ({
   duration: 0,
   currentPace: 0,
   averagePace: 0,
+  lastKmPace: '--:--',
   startTime: null,
   startRecording: () => set({ 
     isRecording: true, 
@@ -32,13 +34,13 @@ export const useRunStore = create<RunState>((set) => ({
     duration: 0, 
     currentPace: 0, 
     averagePace: 0,
+    lastKmPace: '--:--',
     startTime: Date.now() 
   }),
   stopRecording: () => set({ isRecording: false }),
-  addPosition: (pos, distanceInc) =>
+  addPosition: (pos) =>
     set((state) => ({
-      route: [...state.route, pos],
-      totalDistance: state.totalDistance + distanceInc,
+      route: [...state.route, [pos[0], pos[1], Date.now()]],
     })),
   updateStats: (stats) => set((state) => ({ ...state, ...stats })),
   clearRoute: () => set({ 
@@ -47,6 +49,7 @@ export const useRunStore = create<RunState>((set) => ({
     duration: 0, 
     currentPace: 0, 
     averagePace: 0,
+    lastKmPace: '--:--',
     startTime: null 
   }),
 }));

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 
 export interface ChatMessage {
   id: string;
+  user_id: string;
   content: string;
   username: string;
   created_at: string;
@@ -47,6 +48,21 @@ export const chatService = {
     
     if (error) {
       console.error('Error al enviar mensaje:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Elimina un mensaje propio.
+   */
+  async deleteMessage(messageId: string): Promise<void> {
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+    
+    if (error) {
+      console.error('Error al borrar mensaje:', error);
       throw error;
     }
   }

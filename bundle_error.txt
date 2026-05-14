@@ -1,0 +1,10 @@
+
+⚠️ react-native depends on @react-native-community/cli for cli commands. To fix update your package.json to include:
+
+
+  "devDependencies": {
+    "@react-native-community/cli": "latest",
+  }
+
+
+

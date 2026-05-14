@@ -84,32 +84,39 @@ BEGIN
         WHERE ST_Intersects(grid.geom, ST_Transform(v_target_geom, 3857))
     )
     -- 5. UPSERT: Si el hexágono es nuevo se crea, si es tuyo se refuerza, si es enemigo se ataca
-    INSERT INTO public.territories (user_id, hex_id, geom, area_sqm, layers, last_activity)
-    SELECT 
-        p_user_id, 
-        ih.hex_id, 
-        ih.geom, 
-        ST_Area(ih.geom::geography), 
-        1,
-        NOW()
-    FROM intersecting_hexes ih
-    ON CONFLICT (hex_id) DO UPDATE 
-    SET 
-        layers = CASE 
-            WHEN territories.user_id = p_user_id THEN LEAST(COALESCE(territories.layers, 1) + 1, 5) -- Refuerzo (max 5)
-            WHEN territories.layers > 1 THEN territories.layers - 1 -- Ataca defensa
-            ELSE 1 -- Conquista total
-        END,
-        user_id = CASE 
-            WHEN territories.user_id = p_user_id OR territories.layers > 1 THEN territories.user_id 
-            ELSE p_user_id 
-        END,
-        last_activity = NOW();
+    WITH conquest AS (
+        INSERT INTO public.territories (user_id, hex_id, geom, area_sqm, layers, last_activity)
+        SELECT 
+            p_user_id, 
+            ih.hex_id, 
+            ih.geom, 
+            ST_Area(ih.geom::geography), 
+            1,
+            NOW()
+        FROM intersecting_hexes ih
+        ON CONFLICT (hex_id) DO UPDATE 
+        SET 
+            layers = CASE 
+                WHEN territories.user_id = p_user_id THEN LEAST(COALESCE(territories.layers, 1) + 1, 5)
+                WHEN territories.layers > 1 THEN territories.layers - 1 
+                ELSE 1 
+            END,
+            user_id = CASE 
+                WHEN territories.user_id = p_user_id OR territories.layers > 1 THEN territories.user_id 
+                ELSE p_user_id 
+            END,
+            last_activity = NOW()
+        RETURNING user_id, area_sqm, (CASE WHEN xmax = 0 THEN TRUE ELSE FALSE END) as is_new
+    )
+    -- 6. Actualizar el perfil con la nueva área total (solo si es conquista nueva)
+    UPDATE public.profiles
+    SET total_area = COALESCE(total_area, 0) + (SELECT SUM(area_sqm) FROM conquest WHERE is_new = TRUE)
+    WHERE id = p_user_id;
 
-    -- Devolvemos estadísticas (con casteo FLOAT8 ultra-explícito)
+    -- Devolvemos estadísticas reales
     RETURN QUERY SELECT 
-        1::INTEGER as conquered_count, 
-        1::INTEGER as reinforced_count, 
-        0.0::FLOAT8 as total_area_new;
+        (SELECT count(*)::INTEGER FROM conquest WHERE is_new = TRUE), 
+        (SELECT count(*)::INTEGER FROM conquest WHERE is_new = FALSE), 
+        (SELECT COALESCE(SUM(area_sqm), 0)::FLOAT8 FROM conquest WHERE is_new = TRUE);
 END;
 $$;

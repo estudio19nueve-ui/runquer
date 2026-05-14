@@ -40,3 +40,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# builds and backups
+*.apk
+*.zip
+backups/
+scratch/
+*.tar.gz

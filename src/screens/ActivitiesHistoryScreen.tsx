@@ -1,26 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Trash2, Calendar, Map as MapIcon } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import Mapbox from '@rnmapbox/maps';
 
-export const ActivitiesHistoryScreen = () => {
+const ActivitiesHistoryScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   useEffect(() => {
     fetchActivities();
   }, []);
 
+  const handleRename = async (id: string) => {
+    if (!editingName.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('runs')
+        .update({ name: editingName })
+        .eq('id', id);
+
+      if (error) throw error;
+      setActivities(prev => prev.map(a => a.id === id ? { ...a, name: editingName } : a));
+      setEditingId(null);
+    } catch (e) {
+      Alert.alert("Error", "No se pudo renombrar la actividad.");
+    }
+  };
+
   const fetchActivities = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('runs')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -32,18 +54,45 @@ export const ActivitiesHistoryScreen = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (activity: any) => {
     Alert.alert(
       "Eliminar Actividad",
-      "¿Estás seguro de que quieres borrar esta carrera permanentemente?",
+      "¿Estás seguro de que quieres borrar esta carrera permanentemente? Se restará la superficie de tu perfil y ranking.",
       [
         { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Eliminar", 
-          style: "destructive", 
+        {
+          text: "Eliminar",
+          style: "destructive",
           onPress: async () => {
-            await supabase.from('runs').delete().eq('id', id);
-            setActivities(prev => prev.filter(a => a.id !== id));
+            try {
+              const { id, area_sqm, user_id } = activity;
+              const area = Number(area_sqm) || 0;
+
+              // 1. Borrar territorios (hexágonos) asociados
+              await supabase
+                .from('territories')
+                .delete()
+                .eq('run_id', id);
+
+              // 2. Borrar la carrera de la tabla 'runs'
+              const { error: deleteError } = await supabase.from('runs').delete().eq('id', id);
+              if (deleteError) throw deleteError;
+
+              // 3. El perfil (Ranking) se actualizará automáticamente vía Trigger en Supabase
+
+              // 4. Borrar la tarjeta del Feed Social (Chat Global)
+              await supabase
+                .from('activity_feed')
+                .delete()
+                .filter('content', 'like', `%|${id}%`);
+
+              // 5. Actualizar estado local
+              setActivities(prev => prev.filter(a => a.id !== id));
+              Alert.alert("Éxito", "Carrera eliminada correctamente.");
+            } catch (e) {
+              console.error("Error en deep delete:", e);
+              Alert.alert("Error", "No se pudo completar el borrado profundo.");
+            }
           }
         }
       ]
@@ -57,10 +106,13 @@ export const ActivitiesHistoryScreen = () => {
     const center = hasCoords ? coordinates[0] : [0, 0];
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('ActivityDetail', { activity: item })}
+      >
         <View style={styles.itemRow}>
           <View style={styles.mapThumbnail}>
-            <Mapbox.MapView 
+            <Mapbox.MapView
               style={styles.miniMap}
               styleURL={Mapbox.StyleURL.Dark}
               logoEnabled={false}
@@ -71,13 +123,33 @@ export const ActivitiesHistoryScreen = () => {
               rotateEnabled={false}
               pitchEnabled={false}
             >
-              <Mapbox.Camera
-                centerCoordinate={center}
-                zoomLevel={15}
-                animationMode="none"
-              />
+              {hasCoords && coordinates.length > 1 ? (
+                <Mapbox.Camera
+                  bounds={{
+                    ne: [
+                      coordinates.reduce((max, c) => Math.max(max, c[0]), coordinates[0][0]),
+                      coordinates.reduce((max, c) => Math.max(max, c[1]), coordinates[0][1])
+                    ],
+                    sw: [
+                      coordinates.reduce((min, c) => Math.min(min, c[0]), coordinates[0][0]),
+                      coordinates.reduce((min, c) => Math.min(min, c[1]), coordinates[0][1])
+                    ],
+                    paddingTop: 15,
+                    paddingRight: 15,
+                    paddingBottom: 15,
+                    paddingLeft: 15,
+                  }}
+                  animationDuration={0}
+                />
+              ) : (
+                <Mapbox.Camera
+                  centerCoordinate={center}
+                  zoomLevel={15}
+                  animationMode="none"
+                />
+              )}
               {hasCoords && coordinates.length > 1 && (
-                <Mapbox.ShapeSource id={`route-${item.id}`} shape={{ type: 'Feature', geometry: { type: 'LineString', coordinates } }}>
+                <Mapbox.ShapeSource id={`route-${item.id}`} shape={{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } }}>
                   <Mapbox.LineLayer id={`layer-${item.id}`} style={{ lineColor: '#00F3FF', lineWidth: 4, lineOpacity: 1 }} />
                 </Mapbox.ShapeSource>
               )}
@@ -87,30 +159,57 @@ export const ActivitiesHistoryScreen = () => {
           <View style={styles.infoColumn}>
             <View style={styles.cardHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{item.name || 'Carrera Matinal'}</Text>
+                {editingId === item.id ? (
+                  <View style={styles.editRow}>
+                    <TextInput
+                      style={styles.editInput}
+                      value={editingName}
+                      onChangeText={setEditingName}
+                      autoFocus
+                      onBlur={() => handleRename(item.id)}
+                    />
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={() => { setEditingId(item.id); setEditingName(item.name || 'Carrera Matinal'); }}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>{item.name || 'Carrera Matinal'}</Text>
+                  </TouchableOpacity>
+                )}
                 <View style={styles.dateRow}>
                   <Calendar size={12} color="#888" />
                   <Text style={styles.cardDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => handleDelete(item.id)}>
+              <TouchableOpacity onPress={() => handleDelete(item)}>
                 <Trash2 size={18} color="#555" />
               </TouchableOpacity>
             </View>
 
             <View style={styles.statsGrid}>
               <View style={styles.miniStat}>
-                <Text style={styles.miniStatLabel}>DIST.</Text>
+                <Text style={styles.miniStatLabel}>DISTANCIA</Text>
                 <Text style={styles.miniStatValue}>{(item.distance_meters / 1000).toFixed(2)}km</Text>
               </View>
               <View style={styles.miniStat}>
                 <Text style={styles.miniStatLabel}>TIEMPO</Text>
                 <Text style={styles.miniStatValue}>{item.duration ? `${Math.floor(item.duration / 60)}m` : '--'}</Text>
               </View>
+              <View style={styles.miniStat}>
+                <Text style={styles.miniStatLabel}>RITMO</Text>
+                <Text style={styles.miniStatValue}>
+                  {item.duration && item.distance_meters > 0
+                    ? (() => {
+                      const paceSecs = (item.duration / (item.distance_meters / 1000));
+                      const mins = Math.floor(paceSecs / 60);
+                      const secs = Math.floor(paceSecs % 60);
+                      return `${mins}:${secs.toString().padStart(2, '0')}`;
+                    })()
+                    : '--:--'}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -120,7 +219,7 @@ export const ActivitiesHistoryScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ChevronLeft color="#FFF" size={28} />
         </TouchableOpacity>
-        <Text style={styles.title}>CRONOLOGÍA</Text>
+        <Text style={styles.title}>ACTIVIDADES</Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -162,6 +261,8 @@ const styles = StyleSheet.create({
   miniStat: { marginRight: 20 },
   miniStatLabel: { color: '#666', fontSize: 9, fontFamily: 'Outfit-Bold' },
   miniStatValue: { color: '#00F3FF', fontSize: 14, fontFamily: 'Outfit-Black', marginTop: 2 },
+  editRow: { marginBottom: 4 },
+  editInput: { color: '#00F3FF', fontSize: 16, fontFamily: 'Outfit-Bold', borderBottomWidth: 1, borderBottomColor: '#00F3FF', paddingBottom: 2 },
   empty: { marginTop: 100, alignItems: 'center' },
   emptyText: { color: '#444', fontSize: 16, textAlign: 'center', marginTop: 20, paddingHorizontal: 40, fontFamily: 'Outfit-Medium' }
 });

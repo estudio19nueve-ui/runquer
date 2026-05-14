@@ -1,7 +1,6 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import { useRunStore } from '../store/useRunStore';
-import { hexagonService } from './hexagonService';
 
 export const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -9,7 +8,7 @@ export const LOCATION_TASK_NAME = 'background-location-task';
  * Define la tarea de seguimiento en segundo plano en el nivel raíz.
  * Esto es OBLIGATORIO para que Android la encuentre en el arranque del proceso nativo.
  */
-TaskManager.defineTask(LOCATION_TASK_NAME, ({ data, error }) => {
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) {
     console.error('Error en la tarea de segundo plano:', error);
     return;
@@ -41,9 +40,12 @@ export const startBackgroundTracking = async () => {
   }
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-    accuracy: Location.Accuracy.High,
-    timeInterval: 2000,
-    distanceInterval: 1, // Sensibilidad alta de 1 metro
+    accuracy: Location.Accuracy.BestForNavigation,
+    timeInterval: 1000,
+    distanceInterval: 2,
+    deferredUpdatesInterval: 0,
+    deferredUpdatesDistance: 0,
+    pausesUpdatesAutomatically: false,
     foregroundService: {
       notificationTitle: "Runquer: Conquista Activa",
       notificationBody: "Registrando tu ruta en segundo plano...",

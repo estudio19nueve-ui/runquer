@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 
 export interface Run {
   id: string;
+  name?: string;
   path: any;
   area_sqm: number;
   distance_meters: number;
@@ -26,15 +27,17 @@ export const runService = {
   /**
    * Guarda una nueva carrera en el historial.
    */
-  async saveRun(path: any, area: number, distance: number = 0, duration: number = 0): Promise<void> {
-    const { error } = await supabase.from('runs').insert({
+  async saveRun(path: any, area: number, distance: number = 0, duration: number = 0, name?: string): Promise<Run> {
+    const { data, error } = await supabase.from('runs').insert({
       path: path,
       area_sqm: area,
       distance_meters: distance,
       duration: duration,
+      name: name,
       user_id: (await supabase.auth.getUser()).data.user?.id
-    });
+    }).select().single();
 
     if (error) throw error;
+    return data as Run;
   }
 };

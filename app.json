@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "runquer-app",
+    "name": "Runquer",
     "slug": "runquer-app",
-    "version": "1.0.0",
+    "scheme": "runquer",
+    "version": "2.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,12 +15,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.runquer.app",
+      "bundleIdentifier": "com.estudio19nueve.runquer",
       "config": {
         "usesNonExemptEncryption": false
       },
-      "infoPList": {
-        "UIBackgroundModes": ["location", "fetch"]
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Runquer necesita tu ubicación en todo momento para registrar tus rutas y conquistar territorios, incluso con la pantalla bloqueada.",
+        "NSLocationWhenInUseUsageDescription": "Runquer necesita tu ubicación para registrar tus rutas.",
+        "NSMotionUsageDescription": "Runquer utiliza el movimiento para optimizar el consumo de batería durante el seguimiento de actividad."
       }
     },
     "android": {
@@ -34,8 +41,11 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACTIVITY_RECOGNITION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
@@ -46,7 +56,6 @@
         "@rnmapbox/maps",
         {
           "RNMapboxMapsImpl": "mapbox",
-          "RNMapboxMapsDownloadToken": "REPLACE_WITH_MAPBOX_DOWNLOAD_TOKEN"
         }
       ],
       [
@@ -55,7 +64,15 @@
           "locationAlwaysAndWhenInUsePermission": "Runquer necesita tu ubicación para registrar tus rutas y conquistar territorios."
         }
       ],
-      "expo-font"
+      [
+        "expo-gradle-ext-vars",
+        {
+          "googlePlayServicesLocationVersion": "21.3.0"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {

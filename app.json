@@ -16,13 +16,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.estudio19nueve.runquer",
+      "entitlements": {
+        "com.apple.developer.healthkit": true
+      },
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
         "UIBackgroundModes": [
           "location",
-          "fetch"
+          "fetch",
+          "audio"
         ],
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Runquer necesita tu ubicación en todo momento para registrar tus rutas y conquistar territorios, incluso con la pantalla bloqueada.",
         "NSLocationWhenInUseUsageDescription": "Runquer necesita tu ubicación para registrar tus rutas.",
@@ -53,9 +57,16 @@
     },
     "plugins": [
       [
+        "@kingstinct/react-native-healthkit",
+        {
+          "healthSharePermission": "Runquer necesita leer tus entrenos y rutas GPS para importar tus carreras conquistadas.",
+          "healthUpdatePermission": "Runquer no guardará datos de salud en tu dispositivo."
+        }
+      ],
+      [
         "@rnmapbox/maps",
         {
-          "RNMapboxMapsImpl": "mapbox",
+          "RNMapboxMapsImpl": "mapbox"
         }
       ],
       [

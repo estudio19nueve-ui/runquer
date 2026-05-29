@@ -31,12 +31,15 @@ import {
   Outfit_900Black 
 } from '@expo-google-fonts/outfit';
 import * as SplashScreen from 'expo-splash-screen';
+import * as WebBrowser from 'expo-web-browser';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import './src/services/locationTask'; // Import to define TaskManager globally
 
 // Configuración global de Mapbox
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
 
 SplashScreen.preventAutoHideAsync();
+WebBrowser.maybeCompleteAuthSession();
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -143,6 +146,23 @@ export default function App() {
   });
 
   useEffect(() => {
+    // Configuración global de la sesión de audio nativa
+    async function initAudioSession() {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: true,
+          interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+          playThroughEarpieceAndroid: false,
+        });
+        console.log("[Audio] Sesión de audio configurada (ducking y silent mode habilitados)");
+      } catch (err) {
+        console.warn("[Audio] Error configurando la sesión de audio:", err);
+      }
+    }
+    initAudioSession();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

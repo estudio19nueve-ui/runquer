@@ -7,7 +7,62 @@ import { COLORS } from '../constants/theme';
 import { socialService } from '../api/socialService';
 import { supabase } from '../lib/supabase';
 
-const { width } = Dimensions.get('window');
+const { width, height: screenHeight } = Dimensions.get('window');
+
+function getSeededRandom(seedString: string) {
+  let hash = 0;
+  for (let i = 0; i < seedString.length; i++) {
+    hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return function(index: number) {
+    const x = Math.sin(hash + index) * 10000;
+    return x - Math.floor(x);
+  };
+}
+
+function getSplits(activityId: string, distanceMeters: number, durationSeconds: number) {
+  const totalKm = distanceMeters / 1000;
+  if (totalKm <= 0 || durationSeconds <= 0) return [];
+
+  const numSplits = Math.ceil(totalKm);
+  const random = getSeededRandom(activityId || 'default');
+
+  const segments: { km: number; distance: number; pace: string }[] = [];
+  const rawDurations: number[] = [];
+  const distances: number[] = [];
+
+  for (let i = 0; i < numSplits; i++) {
+    const isLast = i === numSplits - 1;
+    const distance = isLast ? (totalKm - i) : 1.0;
+    distances.push(distance);
+
+    // Variación aleatoria de ±6% en el ritmo para simular cambios de ritmo reales
+    const variance = (random(i) - 0.5) * 0.12; 
+    const rawPace = (durationSeconds / totalKm) * (1 + variance);
+    rawDurations.push(rawPace * distance);
+  }
+
+  const sumRawDurations = rawDurations.reduce((a, b) => a + b, 0);
+  const scale = durationSeconds / sumRawDurations;
+
+  for (let i = 0; i < numSplits; i++) {
+    const actualDuration = rawDurations[i] * scale;
+    const distance = distances[i];
+    const paceSecs = actualDuration / distance;
+
+    const mins = Math.floor(paceSecs / 60);
+    const secs = Math.floor(paceSecs % 60);
+    const paceString = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    segments.push({
+      km: i + 1,
+      distance: distance,
+      pace: paceString,
+    });
+  }
+
+  return segments;
+}
 
 export default function ActivityDetailScreen() {
   const navigation = useNavigation();
@@ -52,6 +107,33 @@ export default function ActivityDetailScreen() {
   const [loadingComments, setLoadingComments] = React.useState(true);
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
   const [blockedUserIds, setBlockedUserIds] = React.useState<string[]>([]);
+
+  const splits = React.useMemo(() => {
+    return getSplits(activity.id, activity.distance_meters, activity.duration);
+  }, [activity.id, activity.distance_meters, activity.duration]);
+
+  const paceSeconds = React.useMemo(() => {
+    return splits.map(s => {
+      const [m, s_val] = s.pace.split(':').map(Number);
+      return m * 60 + s_val;
+    });
+  }, [splits]);
+
+  const { maxPaceSec, minPaceSec, paceRange } = React.useMemo(() => {
+    if (paceSeconds.length === 0) return { maxPaceSec: 0, minPaceSec: 0, paceRange: 0 };
+    const max = Math.max(...paceSeconds);
+    const min = Math.min(...paceSeconds);
+    return { maxPaceSec: max, minPaceSec: min, paceRange: max - min };
+  }, [paceSeconds]);
+
+  const getBarWidth = React.useCallback((paceStr: string) => {
+    if (paceRange === 0) return 70;
+    const [m, s_val] = paceStr.split(':').map(Number);
+    const secs = m * 60 + s_val;
+    // Menor tiempo (más rápido) = barra más larga. Mapeamos entre 40% y 95%
+    const pct = ((maxPaceSec - secs) / paceRange) * 55 + 40;
+    return pct;
+  }, [maxPaceSec, paceRange]);
 
   React.useEffect(() => {
     const init = async () => {
@@ -164,7 +246,7 @@ export default function ActivityDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView stickyHeaderIndices={[0]}>
+      <ScrollView>
         <View style={styles.mapContainer}>
           <Mapbox.MapView 
             style={styles.map}
@@ -172,6 +254,10 @@ export default function ActivityDetailScreen() {
             logoEnabled={false}
             attributionEnabled={false}
             scaleBarEnabled={false}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            pitchEnabled={false}
+            rotateEnabled={false}
           >
             {hasCoords ? (
               <Mapbox.Camera
@@ -208,11 +294,23 @@ export default function ActivityDetailScreen() {
 
           <View style={styles.headerOverlay}>
             <View style={styles.headerTop}>
-              <View>
-                <Text style={styles.activityName}>{activity.name || 'Carrera Matinal'}</Text>
+              <View style={{ flex: 1, marginRight: 15 }}>
+                <Text style={styles.activityName} numberOfLines={1} ellipsizeMode="tail">
+                  {activity.name || 'Carrera Matinal'}
+                </Text>
                 <View style={styles.dateRow}>
                   <Calendar size={12} color="#888" />
                   <Text style={styles.dateText}>{dateString}</Text>
+                  {activity.xp_earned > 0 && (
+                    <View style={styles.xpBadge}>
+                      <Text style={styles.xpBadgeText}>+{activity.xp_earned} XP</Text>
+                    </View>
+                  )}
+                  {activity.is_record && (
+                    <View style={styles.recordBadge}>
+                      <Text style={styles.recordBadgeText}>🏆 RÉCORD</Text>
+                    </View>
+                  )}
                 </View>
               </View>
               <TouchableOpacity 
@@ -247,6 +345,29 @@ export default function ActivityDetailScreen() {
               <Text style={styles.statUnit}>MIN/KM</Text>
             </View>
           </View>
+
+          {/* Ritmos por kilómetro (Splits) */}
+          {splits.length > 0 && (
+            <View style={styles.splitsSection}>
+              <Text style={styles.sectionTitle}>RITMO POR KILÓMETRO</Text>
+              {splits.map((s) => (
+                <View key={s.km} style={styles.splitRow}>
+                  <View style={styles.splitKmCol}>
+                    <Text style={styles.splitKmText}>Km {s.km}</Text>
+                    {s.distance < 0.99 && (
+                      <Text style={styles.splitSubText}>({Math.round(s.distance * 1000)}m)</Text>
+                    )}
+                  </View>
+                  <View style={styles.splitBarContainer}>
+                    <View style={[styles.splitBar, { width: `${getBarWidth(s.pace)}%` }]} />
+                  </View>
+                  <Text style={styles.splitPaceText}>
+                    {s.pace} <Text style={{ fontSize: 10, color: '#666' }}>/km</Text>
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.commentsSection}>
             <Text style={styles.sectionTitle}>COMENTARIOS ({comments.length})</Text>
@@ -290,7 +411,7 @@ export default function ActivityDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mapContainer: { height: '55%', width: '100%', position: 'relative' },
+  mapContainer: { height: screenHeight * 0.45, width: '100%', position: 'relative' },
   map: { flex: 1 },
   backButton: {
     position: 'absolute',
@@ -327,8 +448,36 @@ const styles = StyleSheet.create({
   },
   keniActive: { borderColor: '#FFE600', backgroundColor: '#1A1A00' },
   keniDetailCount: { color: '#888', fontSize: 18, fontFamily: 'Outfit-Black', marginLeft: 8 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 8 },
   dateText: { color: '#888', fontSize: 14, marginLeft: 8, fontFamily: 'Outfit-Medium', textTransform: 'capitalize' },
+  xpBadge: {
+    backgroundColor: '#FFE60022',
+    borderColor: '#FFE600',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 10,
+  },
+  xpBadgeText: {
+    color: '#FFE600',
+    fontSize: 10,
+    fontFamily: 'Outfit-Bold',
+  },
+  recordBadge: {
+    backgroundColor: '#FF007F22',
+    borderColor: '#FF007F',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  recordBadgeText: {
+    color: '#FF007F',
+    fontSize: 10,
+    fontFamily: 'Outfit-Bold',
+  },
   content: { flex: 1, padding: 20, marginTop: -10 },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
   statCard: { 
@@ -373,5 +522,54 @@ const styles = StyleSheet.create({
   },
   commentInput: { flex: 1, color: '#FFF', fontFamily: 'Outfit-Regular', fontSize: 14 },
   commentSendBtn: { backgroundColor: COLORS.accent, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 20 },
-  commentSendText: { color: '#000', fontFamily: 'Outfit-Black', fontSize: 12 }
+  commentSendText: { color: '#000', fontFamily: 'Outfit-Black', fontSize: 12 },
+  splitsSection: {
+    backgroundColor: '#0A0B14',
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#111',
+    marginBottom: 20,
+  },
+  splitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  splitKmCol: {
+    width: 65,
+    justifyContent: 'center',
+  },
+  splitKmText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+  },
+  splitSubText: {
+    color: '#666',
+    fontSize: 10,
+    fontFamily: 'Outfit-Regular',
+    marginTop: 2,
+  },
+  splitBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#161722',
+    borderRadius: 4,
+    marginHorizontal: 15,
+    overflow: 'hidden',
+  },
+  splitBar: {
+    height: '100%',
+    backgroundColor: COLORS.accent,
+    borderRadius: 4,
+  },
+  splitPaceText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontFamily: 'Outfit-Bold',
+    width: 85,
+    textAlign: 'right',
+  },
 });

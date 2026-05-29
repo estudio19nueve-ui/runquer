@@ -45,23 +45,23 @@ export const rankingService = {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
       }
 
-      // Consultamos las carreras en ese rango
-      const { data: runs, error: runsError } = await supabase
-        .from('runs')
-        .select('user_id, distance_meters, area_sqm')
-        .gte('created_at', startDate.toISOString());
+      // Consultamos los territorios activos cuya última actividad sea posterior a la fecha de inicio
+      const { data: territories, error: territoriesError } = await supabase
+        .from('territories')
+        .select('user_id, area_sqm')
+        .gte('last_activity', startDate.toISOString());
 
-      if (runsError) throw runsError;
+      if (territoriesError) throw territoriesError;
 
-      // Si no hay carreras, devolvemos vacío
-      if (!runs || runs.length === 0) return [];
+      // Si no hay territorios, devolvemos vacío
+      if (!territories || territories.length === 0) return [];
 
       // Agregamos datos por usuario y recolectamos IDs
       const aggregation: Record<string, any> = {};
       const userIds = new Set<string>();
 
-      runs.forEach((run: any) => {
-        const uid = run.user_id;
+      territories.forEach((t: any) => {
+        const uid = t.user_id;
         if (!uid) return;
         userIds.add(uid);
         
@@ -72,7 +72,7 @@ export const rankingService = {
             total_territories: 0,
           };
         }
-        aggregation[uid].total_area_sqm += (run.area_sqm || 0);
+        aggregation[uid].total_area_sqm += (t.area_sqm || 0);
         aggregation[uid].total_territories += 1;
       });
 

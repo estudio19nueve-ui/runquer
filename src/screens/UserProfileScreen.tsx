@@ -5,6 +5,7 @@ import { ChevronLeft, UserPlus, UserMinus, Calendar, Map as MapIcon, Shield } fr
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { socialService } from '../api/socialService';
+import { getLevelTitle } from '../api/gamificationService';
 import Mapbox from '@rnmapbox/maps';
 import { COLORS } from '../constants/theme';
 
@@ -133,12 +134,12 @@ export default function UserProfileScreen() {
               <Mapbox.Camera
                 bounds={{
                   ne: [
-                    coordinates.reduce((max, c) => Math.max(max, c[0]), coordinates[0][0]),
-                    coordinates.reduce((max, c) => Math.max(max, c[1]), coordinates[0][1])
+                    coordinates.reduce((max: number, c: number[]) => Math.max(max, c[0]), coordinates[0][0]),
+                    coordinates.reduce((max: number, c: number[]) => Math.max(max, c[1]), coordinates[0][1])
                   ],
                   sw: [
-                    coordinates.reduce((min, c) => Math.min(min, c[0]), coordinates[0][0]),
-                    coordinates.reduce((min, c) => Math.min(min, c[1]), coordinates[0][1])
+                    coordinates.reduce((min: number, c: number[]) => Math.min(min, c[0]), coordinates[0][0]),
+                    coordinates.reduce((min: number, c: number[]) => Math.min(min, c[1]), coordinates[0][1])
                   ],
                   paddingTop: 15,
                   paddingRight: 15,
@@ -216,7 +217,7 @@ export default function UserProfileScreen() {
               style={styles.avatar} 
             />
             <Text style={styles.username}>{profile?.username || 'Atleta Runquer'}</Text>
-            <Text style={styles.bio}>Explorador • Nivel {Math.floor((profile?.experience || 0) / 1000) + 1}</Text>
+            <Text style={styles.bio}>{getLevelTitle(Math.floor((profile?.experience || 0) / 1000) + 1)} • Nivel {Math.floor((profile?.experience || 0) / 1000) + 1}</Text>
             
             <View style={styles.mainStats}>
               <View style={styles.mainStat}>

@@ -126,3 +126,15 @@ export const gamificationService = {
     })) as Achievement[];
   }
 };
+
+export function getLevelTitle(level: number): string {
+  if (level <= 2) return "Observador Territorial";
+  if (level <= 5) return "Técnico de Límites";
+  if (level <= 8) return "Mediador de Solapamientos";
+  if (level <= 12) return "Delegado de Fronteras";
+  if (level <= 16) return "Administrador de Enclaves";
+  if (level <= 20) return "Comisionado de Límites";
+  if (level <= 25) return "Garante de Soberanía";
+  if (level <= 30) return "Canciller del Territorio";
+  return "Soberano del Tratado";
+}

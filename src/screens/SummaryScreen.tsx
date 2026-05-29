@@ -11,6 +11,15 @@ const { width } = Dimensions.get('window');
 export default function SummaryScreen({ route, navigation }: any) {
   const { area, distance, polygon, routePath } = route.params;
 
+  // Calcular XP Ganado según la distancia (en metros)
+  const baseXP = distance < 5000 
+    ? 100 
+    : distance < 10000 
+    ? 250 
+    : distance < 21000 
+    ? 500 
+    : 1000;
+
   // Colores del tema Neon unificados
   const theme = {
     background: '#000000',
@@ -47,12 +56,12 @@ export default function SummaryScreen({ route, navigation }: any) {
               <Mapbox.Camera
                 bounds={{
                   ne: [
-                    routePath.reduce((max, c) => Math.max(max, c[0]), routePath[0][0]),
-                    routePath.reduce((max, c) => Math.max(max, c[1]), routePath[0][1])
+                    routePath.reduce((max: number, c: number[]) => Math.max(max, c[0]), routePath[0][0]),
+                    routePath.reduce((max: number, c: number[]) => Math.max(max, c[1]), routePath[0][1])
                   ],
                   sw: [
-                    routePath.reduce((min, c) => Math.min(min, c[0]), routePath[0][0]),
-                    routePath.reduce((min, c) => Math.min(min, c[1]), routePath[0][1])
+                    routePath.reduce((min: number, c: number[]) => Math.min(min, c[0]), routePath[0][0]),
+                    routePath.reduce((min: number, c: number[]) => Math.min(min, c[1]), routePath[0][1])
                   ],
                   paddingTop: 40,
                   paddingRight: 40,
@@ -113,7 +122,7 @@ export default function SummaryScreen({ route, navigation }: any) {
           <View style={styles.statItem}>
             <Zap size={20} color="#FFD700" />
             <Text style={styles.statLabel}>EXP GANADA</Text>
-            <Text style={[styles.statValue, { color: theme.text }]}>+250 XP</Text>
+            <Text style={[styles.statValue, { color: theme.text }]}>+{baseXP} XP</Text>
           </View>
         </View>
       </View>

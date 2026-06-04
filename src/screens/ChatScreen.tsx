@@ -751,55 +751,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.8,
     shadowRadius: 5,
-  },
-  feedCard: {
-    backgroundColor: '#0A0B14',
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#111'
-  },
-  feedCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10
-  },
-  feedUserRow: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  feedAvatarGlow: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0, 243, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 243, 255, 0.3)'
-  },
-  feedUsername: {
-    color: '#00F3FF',
-    fontSize: 14,
-    fontFamily: 'Outfit-Bold'
-  },
-  feedTimeSmall: {
-    color: '#444',
-    fontSize: 10,
-    fontFamily: 'Outfit-Regular'
-  },
-  feedMainText: {
-    color: '#DDD',
-    fontSize: 14,
-    fontFamily: 'Outfit-Regular',
-    lineHeight: 20
-  },
-  feedAccentLine: {
-    height: 1,
-    backgroundColor: '#111',
-    marginTop: 15
   }
 });

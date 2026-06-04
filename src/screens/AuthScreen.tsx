@@ -58,20 +58,8 @@ export default function AuthScreen() {
     try {
       setLoading(true);
       
-      // 1. Generar un nonce aleatorio "en crudo" (Raw)
-      const rawNonce = Crypto.randomUUID();
-
-      // 2. Generar el hash SHA-256 del nonce para enviárselo a Google
-      // IMPORTANTE: iOS requiere que Google reciba el HASH, pero Supabase reciba el RAW.
-      const hashedNonce = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        rawNonce
-      );
-
-      // 3. Iniciar sesión en Google pasando el nonce HASHEADO
-      const response = await GoogleSignin.signIn({
-        nonce: hashedNonce,
-      });
+      // 1. Iniciar sesión en Google (sin pasar nonce, ya que no se soporta consistentemente en la versión pública)
+      const response = await GoogleSignin.signIn();
 
       if (response.type === 'cancelled') {
         return;
@@ -82,12 +70,10 @@ export default function AuthScreen() {
         throw new Error('No se recibió el ID Token de Google');
       }
 
-      // 4. Enviar el token a Supabase pasando el nonce EN CRUDO (Raw)
-      // Supabase se encargará de hashearlo internamente y compararlo con el del ID Token.
+      // 2. Enviar el token a Supabase (sin pasar nonce, requiere que 'Skip nonce checks' esté activado en Supabase)
       const { error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: idToken,
-        nonce: rawNonce,
       });
 
       if (error) throw error;

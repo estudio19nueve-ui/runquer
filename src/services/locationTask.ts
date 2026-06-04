@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { useRunStore } from '../store/useRunStore';
 import * as turf from '@turf/turf';
 import * as Speech from 'expo-speech';
+import { getPreferredVoice, isAudioCuesEnabled } from '../utils/voiceHelper';
 
 export const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -20,6 +21,8 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       if (!state.isRecording) {
         return; // Ignore updates if not actively recording
       }
+
+      let pendingSpeechText: string | null = null;
 
       // Process each location received in the background batch
       for (const location of locations) {
@@ -134,18 +137,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             : `Tiempo acumulado, ${totalSecs} segundos. `;
           const splitPaceSpeechText = `Ritmo del último kilómetro, ${mins} ${mins === 1 ? 'minuto' : 'minutos'}${secs > 0 ? ` y ${secs} segundos` : ''}.`;
 
-          const fullSpeechText = `${kmSpeechText}${totalTimeSpeechText}${splitPaceSpeechText}`;
-          
-          try {
-            Speech.speak(fullSpeechText, {
-              language: 'es',
-              rate: 0.95,
-              pitch: 1.0
-            });
-            console.log(`[AudioCue] Spoke: ${fullSpeechText}`);
-          } catch (speechError) {
-            console.error("[AudioCue] Error invoking Speech.speak:", speechError);
-          }
+          pendingSpeechText = `${kmSpeechText}${totalTimeSpeechText}${splitPaceSpeechText}`;
 
           loopState.addMilestone(currentKm, currentTime);
           loopState.setLastTriggeredKm(currentKm);
@@ -158,6 +150,30 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
           currentPace: currentPace, 
           lastKmPace: lastKmPaceDisplay 
         });
+      }
+
+      // Speak only the latest milestone from this batch
+      if (pendingSpeechText) {
+        try {
+          const enabled = await isAudioCuesEnabled();
+          if (enabled) {
+            const preferredVoice = await getPreferredVoice();
+            const speakOptions: Speech.SpeechOptions = {
+              language: 'es-ES',
+              rate: 0.95,
+              pitch: 1.0,
+            };
+            if (preferredVoice) {
+              speakOptions.voice = preferredVoice;
+            }
+            
+            await Speech.stop(); // Stop any currently playing speech to avoid overlaps
+            Speech.speak(pendingSpeechText, speakOptions);
+            console.log(`[AudioCue] Spoke (latest batch): ${pendingSpeechText} using voice: ${preferredVoice || 'default'}`);
+          }
+        } catch (speechError) {
+          console.error("[AudioCue] Error invoking Speech.speak:", speechError);
+        }
       }
     }
   }

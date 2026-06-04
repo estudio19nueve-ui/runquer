@@ -1,4 +1,4 @@
-import HealthKit, { WorkoutActivityType } from '@kingstinct/react-native-healthkit';
+import HealthKit, { WorkoutActivityType, WorkoutTypeIdentifier } from '@kingstinct/react-native-healthkit';
 import { externalImportService } from '../api/externalImportService';
 
 export const healthKitService = {
@@ -14,7 +14,7 @@ export const healthKitService = {
       }
       
       const success = await HealthKit.requestAuthorization({
-        read: ['HKWorkoutType']
+        toRead: [WorkoutTypeIdentifier]
       });
       
       console.log("[HealthKit] Autorización completada:", success);

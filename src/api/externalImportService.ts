@@ -212,6 +212,19 @@ export const externalImportService = {
       throw runError;
     }
 
+    // 3.5 Vincular los territorios conquistados con la nueva carrera
+    if (newRun?.id) {
+      try {
+        await supabase
+          .from('territories')
+          .update({ run_id: newRun.id })
+          .eq('user_id', userId)
+          .is('run_id', null);
+      } catch (linkError) {
+        console.warn('[Import Service] Error al vincular territorios a la carrera:', linkError);
+      }
+    }
+
     // 4. Registrar la actividad externa enlazada al nuevo Run
     const { error: extError } = await supabase
       .from('external_activities')

@@ -23,6 +23,7 @@ Este archivo sirve como diario de desarrollo y memoria compartida. Aquí anotare
 ## 💡 Notas Técnicas Importantes
 - **Mapbox Android**: El SDK de Mapbox en Android requiere un token con `DOWNLOADS:READ`.
 - **PostGIS**: La lógica de conquista se basa en `ST_Difference` y `ST_Union` para manejar los solapamientos entre jugadores.
+- **Supabase (Mayo 2026)**: Por la actualización de seguridad de Supabase, cualquier tabla nueva en el esquema `public` requiere un `GRANT` explícito (ej. `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.nombre_tabla TO anon, authenticated, service_role;`) para ser visible por la API/`supabase-js`.
 
 ---
 

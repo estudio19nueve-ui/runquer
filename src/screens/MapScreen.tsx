@@ -364,6 +364,34 @@ export default function MapScreen() {
         isProcessingRef.current = false;
       }
     } else {
+      if (Platform.OS === 'android') {
+        try {
+          const isOptimizing = await Battery.isBatteryOptimizationEnabledAsync();
+          if (isOptimizing) {
+            Alert.alert(
+              "Precisión del GPS",
+              "La optimización de batería de Android está activa. Esto puede suspender el GPS cuando la pantalla está bloqueada y hacer que los datos del ranking sean erróneos.\n\nTe recomendamos cambiar la batería de Runquer a 'Sin Restricciones'.",
+              [
+                {
+                  text: "Configurar Ahora",
+                  onPress: () => openBatterySettings()
+                },
+                {
+                  text: "Empezar de todas formas",
+                  style: "cancel",
+                  onPress: () => {
+                    clearRoute();
+                    startRecording();
+                  }
+                }
+              ]
+            );
+            return;
+          }
+        } catch (err) {
+          console.warn("[Battery Check] Error checking battery optimization:", err);
+        }
+      }
       clearRoute();
       startRecording();
     }
@@ -400,6 +428,7 @@ export default function MapScreen() {
               id="3d-buildings"
               sourceLayerID="building"
               minZoomLevel={15}
+              maxZoomLevel={22}
               style={{
                 fillExtrusionColor: '#333333',
                 fillExtrusionHeight: ['get', 'height'],

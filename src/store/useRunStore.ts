@@ -18,6 +18,7 @@ interface RunState {
   addPosition: (pos: [number, number], timestamp?: number) => void;
   updateStats: (stats: Partial<Pick<RunState, 'totalDistance' | 'duration' | 'currentPace' | 'averagePace' | 'lastKmPace'>>) => void;
   clearRoute: () => void;
+  reset: () => void;
   addMilestone: (km: number, timestamp: number) => void;
   setLastTriggeredKm: (km: number) => void;
 }
@@ -52,6 +53,18 @@ export const useRunStore = create<RunState>((set) => ({
     })),
   updateStats: (stats) => set((state) => ({ ...state, ...stats })),
   clearRoute: () => set({ 
+    route: [], 
+    totalDistance: 0, 
+    duration: 0, 
+    currentPace: 0, 
+    averagePace: 0,
+    lastKmPace: '--:--',
+    startTime: null,
+    milestones: [],
+    lastTriggeredKm: 0
+  }),
+  reset: () => set({
+    isRecording: false,
     route: [], 
     totalDistance: 0, 
     duration: 0, 

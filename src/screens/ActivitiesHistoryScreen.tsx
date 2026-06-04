@@ -8,7 +8,7 @@ import Mapbox from '@rnmapbox/maps';
 
 const ActivitiesHistoryScreen = () => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -127,12 +127,12 @@ const ActivitiesHistoryScreen = () => {
                 <Mapbox.Camera
                   bounds={{
                     ne: [
-                      coordinates.reduce((max, c) => Math.max(max, c[0]), coordinates[0][0]),
-                      coordinates.reduce((max, c) => Math.max(max, c[1]), coordinates[0][1])
+                      coordinates.reduce((max: number, c: any) => Math.max(max, c[0]), coordinates[0][0]),
+                      coordinates.reduce((max: number, c: any) => Math.max(max, c[1]), coordinates[0][1])
                     ],
                     sw: [
-                      coordinates.reduce((min, c) => Math.min(min, c[0]), coordinates[0][0]),
-                      coordinates.reduce((min, c) => Math.min(min, c[1]), coordinates[0][1])
+                      coordinates.reduce((min: number, c: any) => Math.min(min, c[0]), coordinates[0][0]),
+                      coordinates.reduce((min: number, c: any) => Math.min(min, c[1]), coordinates[0][1])
                     ],
                     paddingTop: 15,
                     paddingRight: 15,

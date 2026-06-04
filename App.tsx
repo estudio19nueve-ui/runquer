@@ -33,7 +33,9 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import * as WebBrowser from 'expo-web-browser';
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
-import './src/services/locationTask'; // Import to define TaskManager globally
+import * as Location from 'expo-location';
+import { useRunStore } from './src/store/useRunStore';
+import { LOCATION_TASK_NAME } from './src/services/locationTask'; // Import to define TaskManager globally
 
 // Configuración global de Mapbox
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
@@ -164,12 +166,31 @@ export default function App() {
     }
     initAudioSession();
 
+    const handleNoSession = async () => {
+      useRunStore.getState().reset();
+      try {
+        const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+        if (hasStarted) {
+          await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+          console.log("[App Auth] Se detuvo el seguimiento de GPS por ausencia de sesión.");
+        }
+      } catch (err) {
+        console.warn("[App Auth] Error al apagar el GPS:", err);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (!session) {
+        handleNoSession();
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+      if (!session) {
+        await handleNoSession();
+      }
     });
 
     return () => subscription.unsubscribe();

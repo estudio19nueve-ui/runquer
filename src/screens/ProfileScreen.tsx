@@ -2,16 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Alert, TextInput, Vibration, Platform } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, Users, Trophy, History, Shield, Zap, Camera, ChevronDown, ChevronUp, Hexagon, Trash2, Heart } from 'lucide-react-native';
+import { Settings, Users, Trophy, History, Shield, Zap, Camera, ChevronDown, ChevronUp, Hexagon, Trash2, Heart, Volume2, VolumeX, Play } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LineChart } from 'react-native-chart-kit';
 import * as ImagePicker from 'expo-image-picker';
+import * as Speech from 'expo-speech';
+import * as Location from 'expo-location';
 
 import { supabase } from '../lib/supabase';
 import { gamificationService, getLevelTitle } from '../api/gamificationService';
 import { healthKitService } from '../services/healthKitService';
 import { stravaAuthService } from '../services/stravaAuthService';
 import { stravaSyncService } from '../services/stravaSyncService';
+import { useRunStore } from '../store/useRunStore';
+import { LOCATION_TASK_NAME } from '../services/locationTask';
+import { 
+  getSpanishVoices, 
+  getPreferredVoice, 
+  setPreferredVoice, 
+  isAudioCuesEnabled, 
+  setAudioCuesEnabled 
+} from '../utils/voiceHelper';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -63,6 +74,81 @@ export const ProfileScreen = () => {
   const [syncing, setSyncing] = useState(false);
   const [isStravaLinked, setIsStravaLinked] = useState(false);
   const [stravaSyncing, setStravaSyncing] = useState(false);
+
+  const [audioCuesEnabled, setAudioCuesEnabledState] = useState(true);
+  const [availableVoices, setAvailableVoices] = useState<Speech.Voice[]>([]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
+  const [isPlayingTest, setIsPlayingTest] = useState(false);
+
+  useEffect(() => {
+    const initVoiceSettings = async () => {
+      try {
+        const enabled = await isAudioCuesEnabled();
+        setAudioCuesEnabledState(enabled);
+
+        const voices = await getSpanishVoices();
+        // Ordenar las voces: poner las de España (es-ES) primero
+        const sortedVoices = [...voices].sort((a, b) => {
+          const aIsES = a.language.toLowerCase().replace('_', '-').startsWith('es-es');
+          const bIsES = b.language.toLowerCase().replace('_', '-').startsWith('es-es');
+          if (aIsES && !bIsES) return -1;
+          if (!aIsES && bIsES) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setAvailableVoices(sortedVoices);
+
+        const preferred = await getPreferredVoice();
+        if (preferred) {
+          setSelectedVoiceId(preferred);
+        }
+      } catch (err) {
+        console.error("[ProfileScreen] Error initializing voice settings:", err);
+      }
+    };
+    initVoiceSettings();
+  }, []);
+
+  const handleToggleAudioCues = async (val: boolean) => {
+    setAudioCuesEnabledState(val);
+    await setAudioCuesEnabled(val);
+  };
+
+  const handleSelectVoice = async (voiceId: string) => {
+    setSelectedVoiceId(voiceId);
+    await setPreferredVoice(voiceId);
+  };
+
+  const handlePlayTestVoice = async () => {
+    if (!selectedVoiceId || isPlayingTest) return;
+    try {
+      setIsPlayingTest(true);
+      await Speech.stop();
+      Speech.speak("Audioguía de Runquer activa. ¡A conquistar la ciudad!", {
+        voice: selectedVoiceId,
+        language: 'es-ES',
+        rate: 0.95,
+        pitch: 1.0,
+        onDone: () => setIsPlayingTest(false),
+        onError: () => setIsPlayingTest(false),
+      });
+    } catch (err) {
+      console.warn("Error playing test voice:", err);
+      setIsPlayingTest(false);
+    }
+  };
+
+  const cleanupBackgroundTracking = async () => {
+    useRunStore.getState().reset();
+    try {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      if (hasStarted) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+        console.log("[Profile Logout] Se detuvo el seguimiento de GPS en segundo plano.");
+      }
+    } catch (err) {
+      console.warn("[Profile Logout] Error deteniendo el GPS en segundo plano:", err);
+    }
+  };
 
   useEffect(() => {
     fetchProfileData();
@@ -214,7 +300,14 @@ export const ProfileScreen = () => {
       "¿Estás seguro de que quieres salir de Runquer?",
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "Salir", style: "destructive", onPress: () => supabase.auth.signOut() }
+        { 
+          text: "Salir", 
+          style: "destructive", 
+          onPress: async () => {
+            await cleanupBackgroundTracking();
+            await supabase.auth.signOut();
+          } 
+        }
       ]
     );
   };
@@ -333,6 +426,7 @@ export const ProfileScreen = () => {
           onPress: async () => {
             try {
               setLoading(true);
+              await cleanupBackgroundTracking();
               if (profile?.id) {
                 // Borrar datos asociados del usuario en la base de datos
                 await supabase.from('territories').delete().eq('user_id', profile.id);
@@ -574,6 +668,91 @@ export const ProfileScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* SECCIÓN DE CONFIGURACIÓN DE AUDIOGUÍA */}
+      <View style={styles.audioguideCard}>
+        <Text style={styles.audioguideTitle}>AUDIOGUÍA (ALERTAS DE VOZ)</Text>
+        
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>Alertas de voz en carrera</Text>
+          <TouchableOpacity 
+            style={[styles.toggleBtn, audioCuesEnabled ? styles.toggleBtnActive : styles.toggleBtnInactive]}
+            onPress={() => handleToggleAudioCues(!audioCuesEnabled)}
+          >
+            <Text style={audioCuesEnabled ? styles.toggleTextActive : styles.toggleTextInactive}>
+              {audioCuesEnabled ? 'ACTIVADAS' : 'DESACTIVADAS'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {audioCuesEnabled && (
+          <View style={styles.voiceSelectSection}>
+            <Text style={styles.voiceListLabel}>Seleccionar voz en español:</Text>
+            {availableVoices.length === 0 ? (
+              <Text style={{ color: '#666', fontSize: 12, fontFamily: 'Outfit-Medium', marginBottom: 10 }}>
+                No se encontraron voces en español instaladas.
+              </Text>
+            ) : (
+              <ScrollView 
+                style={styles.voiceScrollView} 
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+              >
+                {availableVoices.map((voice) => {
+                  const isActive = voice.identifier === selectedVoiceId;
+                  const isES = voice.language.toLowerCase().replace('_', '-').startsWith('es-es');
+                  const nameLower = voice.name.toLowerCase();
+                  const isMale = nameLower.includes('jorge') || nameLower.includes('sfs') || nameLower.includes('esc') || nameLower.includes('dcc') || nameLower.includes('male') || nameLower.includes('varón') || nameLower.includes('varon');
+                  
+                  return (
+                    <TouchableOpacity 
+                      key={voice.identifier}
+                      style={[styles.voiceItem, isActive && styles.voiceItemActive]}
+                      onPress={() => handleSelectVoice(voice.identifier)}
+                    >
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={styles.voiceName}>{voice.name}</Text>
+                        <Text style={styles.voiceLang}>
+                          {isES ? 'España (Nacional)' : 'Internacional'}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={[styles.voiceBadge, isActive && styles.voiceBadgeActive]}>
+                          <Text style={[styles.voiceBadgeText, isActive && styles.voiceBadgeTextActive]}>
+                            {isMale ? 'Varón' : 'Mujer'}
+                          </Text>
+                        </View>
+                        {isActive && (
+                          <View style={[styles.voiceBadge, { backgroundColor: '#00F3FF' }]}>
+                            <Text style={[styles.voiceBadgeText, { color: '#000' }]}>Activo</Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {selectedVoiceId !== "" && (
+              <TouchableOpacity 
+                style={[styles.playTestBtn, isPlayingTest && styles.playTestBtnActive]} 
+                onPress={handlePlayTestVoice}
+                disabled={isPlayingTest}
+              >
+                {isPlayingTest ? (
+                  <ActivityIndicator size="small" color="#00F3FF" style={{ marginRight: 8 }} />
+                ) : (
+                  <Play size={16} color={isPlayingTest ? '#00F3FF' : '#FFF'} style={{ marginRight: 8 }} />
+                )}
+                <Text style={[styles.playTestText, isPlayingTest && { color: '#00F3FF' }]}>
+                  {isPlayingTest ? 'Reproduciendo...' : 'Reproducir prueba de voz'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
       {Platform.OS === 'ios' && (
         <TouchableOpacity
           style={styles.syncButton}
@@ -772,6 +951,138 @@ const styles = StyleSheet.create({
     color: '#00F3FF',
     fontSize: 14,
     fontFamily: 'Outfit-Bold',
+  },
+  audioguideCard: {
+    backgroundColor: '#0A0B14',
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#222',
+    width: '90%',
+    alignSelf: 'center',
+    marginTop: 20,
+  },
+  audioguideTitle: {
+    color: '#666',
+    fontSize: 10,
+    fontFamily: 'Outfit-Bold',
+    letterSpacing: 1,
+    marginBottom: 15,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  toggleLabel: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+  },
+  toggleBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#001A1F',
+    borderColor: '#00F3FF',
+  },
+  toggleBtnInactive: {
+    backgroundColor: '#111',
+    borderColor: '#333',
+  },
+  toggleTextActive: {
+    color: '#00F3FF',
+    fontFamily: 'Outfit-Bold',
+    fontSize: 12,
+  },
+  toggleTextInactive: {
+    color: '#666',
+    fontFamily: 'Outfit-Bold',
+    fontSize: 12,
+  },
+  voiceSelectSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#222',
+    paddingTop: 15,
+  },
+  voiceListLabel: {
+    color: '#888',
+    fontSize: 12,
+    fontFamily: 'Outfit-Medium',
+    marginBottom: 10,
+  },
+  voiceScrollView: {
+    maxHeight: 150,
+    marginBottom: 15,
+  },
+  voiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  voiceItemActive: {
+    borderColor: '#00F3FF',
+    backgroundColor: '#001A1F',
+  },
+  voiceName: {
+    color: '#FFF',
+    fontSize: 13,
+    fontFamily: 'Outfit-Bold',
+  },
+  voiceLang: {
+    color: '#888',
+    fontSize: 11,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 2,
+  },
+  voiceBadge: {
+    backgroundColor: '#222',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    marginLeft: 6,
+  },
+  voiceBadgeActive: {
+    backgroundColor: '#00F3FF',
+  },
+  voiceBadgeText: {
+    color: '#AAA',
+    fontSize: 9,
+    fontFamily: 'Outfit-Bold',
+  },
+  voiceBadgeTextActive: {
+    color: '#000',
+  },
+  playTestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  playTestBtnActive: {
+    borderColor: '#00F3FF',
+    backgroundColor: '#001A1F',
+  },
+  playTestText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: 'Outfit-Bold',
+    marginLeft: 8,
   }
 });
 

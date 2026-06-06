@@ -63,7 +63,25 @@ export async function getBestSpanishMaleVoice(): Promise<string | undefined> {
 export async function getPreferredVoice(): Promise<string | undefined> {
   try {
     const saved = await AsyncStorage.getItem(PREFERRED_VOICE_KEY);
-    if (saved) return saved;
+    const voices = await getSpanishVoices();
+
+    const hasEsES = voices.some(v => v.language.toLowerCase().replace('_', '-').startsWith('es-es'));
+    if (saved) {
+      const savedVoice = voices.find(v => v.identifier === saved);
+      if (savedVoice) {
+        const savedIsEsES = savedVoice.language.toLowerCase().replace('_', '-').startsWith('es-es');
+        // Si hay una voz de España disponible en el dispositivo, pero la guardada es de otra región (latina), actualizamos
+        if (!savedIsEsES && hasEsES) {
+          console.log("[VoiceHelper] Auto-actualizando voz guardada a español de España");
+          const bestDefault = await getBestSpanishMaleVoice();
+          if (bestDefault) {
+            await setPreferredVoice(bestDefault);
+            return bestDefault;
+          }
+        }
+      }
+      return saved;
+    }
 
     // Si no hay voz configurada, buscar el mejor varón español
     const bestDefault = await getBestSpanishMaleVoice();
@@ -76,6 +94,7 @@ export async function getPreferredVoice(): Promise<string | undefined> {
   }
   return undefined;
 }
+
 
 /**
  * Guarda la voz preferida.

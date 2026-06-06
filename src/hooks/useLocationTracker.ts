@@ -59,6 +59,8 @@ export const useLocationTracker = () => {
         accuracy: Location.Accuracy.BestForNavigation,
         distanceInterval: 5,          // Mínimo 5m entre puntos
         timeInterval: 3000,           // Máximo 3 segundos entre puntos
+        deferredUpdatesInterval: 0,   // Impedir que el sistema operativo agrupe/demore actualizaciones
+        deferredUpdatesDistance: 0,   // Entregar puntos al instante
         showsBackgroundLocationIndicator: true,
         pausesUpdatesAutomatically: false,  // Nunca pausar el GPS automáticamente
         activityType: Location.ActivityType.Fitness, // iOS: optimizado para running
@@ -68,6 +70,7 @@ export const useLocationTracker = () => {
           notificationColor: "#FF0000",
         },
       });
+
 
       console.log("[Location] Background tracking started successfully");
     }

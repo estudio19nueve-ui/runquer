@@ -29,18 +29,34 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         const loopState = useRunStore.getState();
         const newPos: [number, number] = [location.coords.longitude, location.coords.latitude];
         const currentTime = location.timestamp;
+        const accuracy = location.coords.accuracy;
+
+        // 1. Filtrar por precisión básica (descartar puntos con más de 30m de margen de error)
+        if (accuracy && accuracy > 30) {
+          console.log(`[LocationTask] Descartando punto por baja precisión: ${accuracy}m`);
+          continue;
+        }
 
         let newDistance = loopState.totalDistance;
 
-        // Calculate distance from last route point using Turf.js
+        // 2. Filtrar saltos y velocidades imposibles (filtro contra locuras del GPS en segundo plano)
         if (loopState.route.length > 0) {
           const lastPoint = loopState.route[loopState.route.length - 1];
           const from = turf.point([lastPoint[0], lastPoint[1]]);
           const to = turf.point(newPos);
           const distanceKM = turf.distance(from, to, { units: 'kilometers' });
-          
+          const timeDiffSeconds = (currentTime - lastPoint[2]) / 1000;
+
           if (!isNaN(distanceKM) && distanceKM > 0) {
-             newDistance += distanceKM * 1000; // meters
+            if (timeDiffSeconds > 0) {
+              const speedMps = (distanceKM * 1000) / timeDiffSeconds;
+              // 10 m/s = 36 km/h. Nadie corre a esta velocidad sostenida. Límite seguro para evitar saltos locos del GPS.
+              if (speedMps > 10) {
+                console.log(`[LocationTask] Descartando punto por salto de GPS (velocidad imposible: ${speedMps.toFixed(1)} m/s, dist: ${(distanceKM*1000).toFixed(1)}m, tiempo: ${timeDiffSeconds.toFixed(1)}s)`);
+                continue;
+              }
+            }
+            newDistance += distanceKM * 1000; // meters
           }
         }
 
@@ -69,6 +85,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             }
           }
         }
+
 
         let lastKmPaceDisplay = '--:--';
         // Cálculo del ritmo del último km usando newPos como punto FINAL (corrección del bug)

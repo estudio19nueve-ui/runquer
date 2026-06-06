@@ -68,17 +68,10 @@ const ActivitiesHistoryScreen = () => {
               const { id, area_sqm, user_id } = activity;
               const area = Number(area_sqm) || 0;
 
-              // 1. Borrar territorios (hexágonos) asociados
-              await supabase
-                .from('territories')
-                .delete()
-                .eq('run_id', id);
-
-              // 2. Borrar la carrera de la tabla 'runs'
+              // 1. Borrar la carrera de la tabla 'runs' (el trigger handle_run_delete en Supabase se encargará de decrementar layers y borrar territorios)
               const { error: deleteError } = await supabase.from('runs').delete().eq('id', id);
               if (deleteError) throw deleteError;
 
-              // 3. El perfil (Ranking) se actualizará automáticamente vía Trigger en Supabase
 
               // 4. Borrar la tarjeta del Feed Social (Chat Global)
               await supabase

@@ -38,7 +38,9 @@ yarn-error.*
 *.tsbuildinfo
 
 # generated native folders
-/ios
+# ios/ is committed so EAS Build uses our tested Podfile.lock
+/ios/Pods/
+/ios/build/
 /android
 
 # builds and backups

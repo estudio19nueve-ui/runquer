@@ -10,3 +10,5 @@ dist
 *.apk
 *.log
 scratch
+ios/Pods
+ios/build

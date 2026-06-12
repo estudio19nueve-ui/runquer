@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TextInput, TouchableOpacity, Text, Alert, ActivityIndicator, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as Crypto from 'expo-crypto';
 import Svg, { Path } from 'react-native-svg';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 // Logo de Google SVG para un acabado profesional
 const GoogleLogo = () => (
@@ -21,11 +22,8 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    GoogleSignin.configure({
-      scopes: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
-      webClientId: '796377992566-ddemv7cgtakk0s9020b3pcnkup0rlvgq.apps.googleusercontent.com', 
-      iosClientId: '796377992566-gp8idrf367j30ajnj8vp6nf46nnl1kto.apps.googleusercontent.com',
-    });
+    // La configuración de Google se hace en signInWithGoogle() para incluir el nonce único por sesión
+    GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true }).catch(() => {});
   }, []);
 
   async function signInWithEmail() {
@@ -57,8 +55,23 @@ export default function AuthScreen() {
   async function signInWithGoogle() {
     try {
       setLoading(true);
-      
-      // 1. Iniciar sesión en Google (sin pasar nonce, ya que no se soporta consistentemente en la versión pública)
+
+      // 1. Generar nonce único para esta sesión de login
+      const rawNonce = Crypto.randomUUID();
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce
+      );
+
+      // 2. Configurar Google con el nonce hasheado (Google lo incrusta en el JWT)
+      GoogleSignin.configure({
+        scopes: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
+        webClientId: '796377992566-ddemv7cgtakk0s9020b3pcnkup0rlvgq.apps.googleusercontent.com',
+        iosClientId: '796377992566-gp8idrf367j30ajnj8vp6nf46nnl1kto.apps.googleusercontent.com',
+        nonce: hashedNonce,
+      });
+
+      // 3. Iniciar sesión en Google
       const response = await GoogleSignin.signIn();
 
       if (response.type === 'cancelled') {
@@ -70,10 +83,11 @@ export default function AuthScreen() {
         throw new Error('No se recibió el ID Token de Google');
       }
 
-      // 2. Enviar el token a Supabase (sin pasar nonce, requiere que 'Skip nonce checks' esté activado en Supabase)
+      // 4. Enviar el token a Supabase con el nonce original (Supabase lo hashea y verifica)
       const { error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: idToken,
+        nonce: rawNonce,
       });
 
       if (error) throw error;
@@ -86,6 +100,38 @@ export default function AuthScreen() {
       } else {
         console.error('Detalle del error Google:', error);
         Alert.alert('Error de Google', error.message || 'Error desconocido');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signInWithApple() {
+    try {
+      setLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (credential.identityToken) {
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+        });
+
+        if (error) throw error;
+      } else {
+        throw new Error('No se recibió el token de identidad de Apple.');
+      }
+    } catch (error: any) {
+      if (error.code === 'ERR_CANCELED') {
+        // Usuario canceló la autenticación
+      } else {
+        console.error('Error de Apple Sign-In:', error);
+        Alert.alert('Error', error.message || 'No se pudo iniciar sesión con Apple.');
       }
     } finally {
       setLoading(false);
@@ -143,6 +189,16 @@ export default function AuthScreen() {
         <Text style={styles.separatorText}>O</Text>
         <View style={styles.separatorLine} />
       </View>
+
+      {Platform.OS === 'ios' && (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+          cornerRadius={8}
+          style={styles.buttonApple}
+          onPress={() => signInWithApple()}
+        />
+      )}
 
       <TouchableOpacity 
         style={styles.buttonGoogle} 
@@ -244,5 +300,10 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'Outfit-Bold',
     fontSize: 16,
+  },
+  buttonApple: {
+    width: '100%',
+    height: 50,
+    marginBottom: 15,
   },
 });

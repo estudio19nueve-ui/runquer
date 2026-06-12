@@ -5,7 +5,6 @@ runquer_v2.apk
 node_modules
 .expo
 android
-ios
 dist
 *.zip
 *.apk

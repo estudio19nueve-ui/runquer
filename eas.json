@@ -22,10 +22,25 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ccvckvarssxppidyqsfc.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_7N6Bh6I7ykxn6LJrwBuOqA_-YEdX1C-",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "pk.eyJ1IjoiZXN0dWRpbzE5bnVldmUiLCJhIjoiY21vMDh6YzFuMDRydzJvcXdoOWFyZWg4bSJ9.Yx8hD_tmi8nC5h6IN8qymQ",
+        "EXPO_PUBLIC_STRAVA_CLIENT_ID": "249367",
+        "EXPO_PUBLIC_STRAVA_CLIENT_SECRET": "edbdd3ec4d5058a9991bb0c68c930e28afc20cac"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
   }
 }

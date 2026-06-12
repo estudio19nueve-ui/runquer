@@ -3,7 +3,7 @@
     "name": "Runquer",
     "slug": "runquer-app",
     "scheme": "runquer",
-    "version": "2.5.0",
+    "version": "2.5.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -83,7 +83,12 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.796377992566-gp8idrf367j30ajnj8vp6nf46nnl1kto"
+        }
+      ]
     ],
     "extra": {
       "eas": {

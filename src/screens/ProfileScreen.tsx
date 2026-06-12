@@ -79,6 +79,7 @@ export const ProfileScreen = () => {
   const [availableVoices, setAvailableVoices] = useState<Speech.Voice[]>([]);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
   const [isPlayingTest, setIsPlayingTest] = useState(false);
+  const [isVoiceDropdownOpen, setIsVoiceDropdownOpen] = useState(false);
 
   useEffect(() => {
     const initVoiceSettings = async () => {
@@ -473,6 +474,10 @@ export const ProfileScreen = () => {
     '#E0FFFF', '#99FFFF', '#FFC107', '#E6E6FA'
   ];
 
+  const selectedVoice = availableVoices.find(v => v.identifier === selectedVoiceId);
+  const selectedVoiceName = selectedVoice ? selectedVoice.name : "Seleccionar voz...";
+  const selectedVoiceGender = selectedVoice ? (selectedVoice.name.toLowerCase().includes('jorge') || selectedVoice.name.toLowerCase().includes('sfs') || selectedVoice.name.toLowerCase().includes('esc') || selectedVoice.name.toLowerCase().includes('dcc') || selectedVoice.name.toLowerCase().includes('male') || selectedVoice.name.toLowerCase().includes('varón') || selectedVoice.name.toLowerCase().includes('varon') ? 'Varón' : 'Mujer') : '';
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top }}>
       <View style={styles.header}>
@@ -692,50 +697,78 @@ export const ProfileScreen = () => {
                 No se encontraron voces en español instaladas.
               </Text>
             ) : (
-              <ScrollView 
-                style={styles.voiceScrollView} 
-                nestedScrollEnabled={true}
-                showsVerticalScrollIndicator={true}
-              >
-                {availableVoices.map((voice) => {
-                  const isActive = voice.identifier === selectedVoiceId;
-                  const isES = voice.language.toLowerCase().replace('_', '-').startsWith('es-es');
-                  const nameLower = voice.name.toLowerCase();
-                  const isMale = nameLower.includes('jorge') || nameLower.includes('sfs') || nameLower.includes('esc') || nameLower.includes('dcc') || nameLower.includes('male') || nameLower.includes('varón') || nameLower.includes('varon');
-                  
-                  return (
-                    <TouchableOpacity 
-                      key={voice.identifier}
-                      style={[styles.voiceItem, isActive && styles.voiceItemActive]}
-                      onPress={() => handleSelectVoice(voice.identifier)}
-                    >
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={styles.voiceName}>{voice.name}</Text>
-                        <Text style={styles.voiceLang}>
-                          {isES ? 'España (Nacional)' : 'Internacional'}
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={[styles.voiceBadge, isActive && styles.voiceBadgeActive]}>
-                          <Text style={[styles.voiceBadgeText, isActive && styles.voiceBadgeTextActive]}>
-                            {isMale ? 'Varón' : 'Mujer'}
-                          </Text>
-                        </View>
-                        {isActive && (
-                          <View style={[styles.voiceBadge, { backgroundColor: '#00F3FF' }]}>
-                            <Text style={[styles.voiceBadgeText, { color: '#000' }]}>Activo</Text>
+              <View style={styles.dropdownContainer}>
+                <TouchableOpacity 
+                  style={[styles.dropdownHeader, isVoiceDropdownOpen && styles.dropdownHeaderActive]}
+                  onPress={() => setIsVoiceDropdownOpen(!isVoiceDropdownOpen)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dropdownSelectedValue}>
+                      {selectedVoiceName}
+                    </Text>
+                    {selectedVoice && (
+                      <Text style={styles.dropdownSelectedSub}>
+                        {selectedVoice.language.toLowerCase().replace('_', '-').startsWith('es-es') ? 'España (Nacional)' : 'Internacional'} • {selectedVoiceGender}
+                      </Text>
+                    )}
+                  </View>
+                  {isVoiceDropdownOpen ? (
+                    <ChevronUp size={20} color="#00F3FF" />
+                  ) : (
+                    <ChevronDown size={20} color="#888" />
+                  )}
+                </TouchableOpacity>
+
+                {isVoiceDropdownOpen && (
+                  <ScrollView 
+                    style={styles.voiceScrollView} 
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    {availableVoices.map((voice) => {
+                      const isActive = voice.identifier === selectedVoiceId;
+                      const isES = voice.language.toLowerCase().replace('_', '-').startsWith('es-es');
+                      const nameLower = voice.name.toLowerCase();
+                      const isMale = nameLower.includes('jorge') || nameLower.includes('sfs') || nameLower.includes('esc') || nameLower.includes('dcc') || nameLower.includes('male') || nameLower.includes('varón') || nameLower.includes('varon');
+                      
+                      return (
+                        <TouchableOpacity 
+                          key={voice.identifier}
+                          style={[styles.voiceItem, isActive && styles.voiceItemActive]}
+                          onPress={() => {
+                            handleSelectVoice(voice.identifier);
+                            setIsVoiceDropdownOpen(false);
+                          }}
+                        >
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.voiceName}>{voice.name}</Text>
+                            <Text style={styles.voiceLang}>
+                              {isES ? 'España (Nacional)' : 'Internacional'}
+                            </Text>
                           </View>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={[styles.voiceBadge, isActive && styles.voiceBadgeActive]}>
+                              <Text style={[styles.voiceBadgeText, isActive && styles.voiceBadgeTextActive]}>
+                                {isMale ? 'Varón' : 'Mujer'}
+                              </Text>
+                            </View>
+                            {isActive && (
+                              <View style={[styles.voiceBadge, { backgroundColor: '#00F3FF' }]}>
+                                <Text style={[styles.voiceBadgeText, { color: '#000' }]}>Activo</Text>
+                              </View>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
             )}
 
             {selectedVoiceId !== "" && (
               <TouchableOpacity 
-                style={[styles.playTestBtn, isPlayingTest && styles.playTestBtnActive]} 
+                style={[styles.playTestBtn, isPlayingTest && styles.playTestBtnActive, { marginTop: 12 }]} 
                 onPress={handlePlayTestVoice}
                 disabled={isPlayingTest}
               >
@@ -1003,6 +1036,34 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: 'Outfit-Bold',
     fontSize: 12,
+  },
+  dropdownContainer: {
+    marginBottom: 10,
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  dropdownHeaderActive: {
+    borderColor: '#00F3FF',
+    backgroundColor: '#001A1F',
+  },
+  dropdownSelectedValue: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+  },
+  dropdownSelectedSub: {
+    color: '#888',
+    fontSize: 11,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 2,
   },
   voiceSelectSection: {
     borderTopWidth: 1,

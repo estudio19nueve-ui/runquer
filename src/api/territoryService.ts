@@ -8,6 +8,8 @@ export interface Territory {
   area_sqm: number;
   layers: number;
   profiles?: {
+    username?: string;
+    total_area?: number;
     territory_color: string;
   };
 }
@@ -18,7 +20,7 @@ export const territoryService = {
       console.log('Fetching territories from Supabase...');
       const { data, error } = await supabase
         .from('territories')
-        .select('*, profiles(territory_color)')
+        .select('*, profiles(username, total_area, territory_color)')
         .limit(1000);
 
       if (error) {

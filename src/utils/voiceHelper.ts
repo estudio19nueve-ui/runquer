@@ -9,8 +9,8 @@ const AUDIO_CUES_ENABLED_KEY = 'runquer_audio_cues_enabled';
  */
 export async function getSpanishVoices(): Promise<Speech.Voice[]> {
   try {
-    const voices = await Speech.getVoicesAsync();
-    return voices.filter(v => v.language.toLowerCase().startsWith('es'));
+    const voices = await Speech.getAvailableVoicesAsync();
+    return voices.filter((v: Speech.Voice) => v.language.toLowerCase().startsWith('es'));
   } catch (e) {
     console.error("[VoiceHelper] Error al obtener voces:", e);
     return [];

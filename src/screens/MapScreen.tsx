@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Mapbox from '@rnmapbox/maps';
 import * as turf from '@turf/turf';
 import { useNavigation } from '@react-navigation/native';
-import { Map as MapIcon, Shield, ShieldAlert, MapPin } from 'lucide-react-native';
+import { Map as MapIcon, Shield, ShieldAlert, MapPin, X, ChevronRight } from 'lucide-react-native';
 import * as Battery from 'expo-battery';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Platform, Linking } from 'react-native';
@@ -53,6 +53,13 @@ export default function MapScreen() {
   const [profile, setProfile] = useState<any>(null);
   const [isBatteryOptimized, setIsBatteryOptimized] = useState(false);
   const [showLocationDisclosure, setShowLocationDisclosure] = useState(false);
+  const [selectedTerritory, setSelectedTerritory] = useState<{
+    userId: string;
+    username: string;
+    totalZones: number;
+    totalAreaSqKm: number;
+    color: string;
+  } | null>(null);
   const isFetchingRef = useRef(false);
   const hasAnimatedRef = useRef(false);
 
@@ -176,7 +183,9 @@ export default function MapScreen() {
             properties: {
               user_id: t.user_id || '',
               color: prof?.territory_color || COLORS.me,
-              layers: t.layers || 1
+              layers: t.layers || 1,
+              username: prof?.username || 'Explorador',
+              total_area: prof?.total_area || 0
             },
             geometry: geometry
           };
@@ -412,6 +421,9 @@ export default function MapScreen() {
         attributionEnabled={false}
         scaleBarEnabled={false}
         onDidFinishLoadingMap={() => setIsMapReady(true)}
+        onPress={() => {
+          setSelectedTerritory(null);
+        }}
       >
         <Mapbox.Camera 
           ref={cameraRef}
@@ -448,7 +460,31 @@ export default function MapScreen() {
               <Mapbox.LineLayer id="routeLayer" style={{ lineColor: COLORS.me, lineWidth: 5, lineOpacity: 0.8 }} />
             </Mapbox.ShapeSource>
 
-            <Mapbox.ShapeSource id="territoriesSource" shape={territoryGeoJSON as any}>
+            <Mapbox.ShapeSource 
+              id="territoriesSource" 
+              shape={territoryGeoJSON as any}
+              onPress={(event) => {
+                const feature = event.features[0];
+                if (feature && feature.properties) {
+                  const clickedUserId = feature.properties.user_id;
+                  const username = feature.properties.username;
+                  const totalArea = feature.properties.total_area;
+                  const color = feature.properties.color;
+
+                  // Calcular zonas conquistadas en memoria
+                  const zonesCount = territories.filter(t => t.user_id === clickedUserId).length;
+                  const totalAreaSqKm = (totalArea || 0) / 1000000;
+
+                  setSelectedTerritory({
+                    userId: clickedUserId,
+                    username: username || 'Explorador',
+                    totalZones: zonesCount,
+                    totalAreaSqKm: totalAreaSqKm,
+                    color: color || COLORS.me
+                  });
+                }
+              }}
+            >
               <Mapbox.FillLayer 
                 id="territoriesFill" 
                 style={{ 
@@ -547,6 +583,51 @@ export default function MapScreen() {
           >
             <Text style={styles.buttonText}>EMPEZAR CONQUISTA</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {!isRecording && selectedTerritory && (
+        <View style={[styles.popupContainer, { bottom: insets.bottom + 100 }]}>
+          <View style={styles.popupCard}>
+            <View style={styles.popupHeader}>
+              <View style={styles.userInfo}>
+                <View style={[styles.colorIndicator, { backgroundColor: selectedTerritory.color, shadowColor: selectedTerritory.color }]} />
+                <Text style={styles.popupUsername}>{selectedTerritory.username}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={() => setSelectedTerritory(null)}
+              >
+                <X size={18} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.popupDivider} />
+
+            <View style={styles.popupStats}>
+              <View style={styles.popupStatBox}>
+                <Text style={styles.popupStatLabel}>ZONAS CONQUISTADAS</Text>
+                <Text style={styles.popupStatValue}>{selectedTerritory.totalZones}</Text>
+              </View>
+              <View style={styles.popupStatDivider} />
+              <View style={styles.popupStatBox}>
+                <Text style={styles.popupStatLabel}>SUPERFICIE TOTAL</Text>
+                <Text style={styles.popupStatValue}>{selectedTerritory.totalAreaSqKm.toFixed(2)} km²</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => {
+                const uid = selectedTerritory.userId;
+                setSelectedTerritory(null);
+                navigation.navigate('UserProfile', { userId: uid });
+              }}
+            >
+              <Text style={styles.profileButtonText}>VER PERFIL</Text>
+              <ChevronRight size={16} color="#000" />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -739,5 +820,106 @@ const styles = StyleSheet.create({
   disclosureItem: { color: '#AAA', fontSize: 13, fontFamily: 'Outfit-Medium', marginBottom: 8 },
   disclosureSubtext: { color: '#666', fontSize: 11, fontFamily: 'Outfit-Regular', textAlign: 'center', lineHeight: 16, marginBottom: 30 },
   disclosureButton: { backgroundColor: COLORS.accent, paddingVertical: 15, paddingHorizontal: 30, borderRadius: 15, width: '100%', alignItems: 'center' },
-  disclosureButtonText: { color: '#000', fontSize: 14, fontFamily: 'Outfit-Black' }
+  disclosureButtonText: { color: '#000', fontSize: 14, fontFamily: 'Outfit-Black' },
+  popupContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 90,
+  },
+  popupCard: {
+    backgroundColor: 'rgba(10, 11, 20, 0.92)',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  popupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  colorIndicator: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: 10,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  popupUsername: {
+    color: '#FFF',
+    fontSize: 18,
+    fontFamily: 'Outfit-Black',
+    letterSpacing: 0.5,
+  },
+  closeButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  popupDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 16,
+  },
+  popupStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  popupStatBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  popupStatLabel: {
+    color: '#555',
+    fontSize: 9,
+    fontFamily: 'Outfit-Bold',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  popupStatValue: {
+    color: '#FFF',
+    fontSize: 18,
+    fontFamily: 'Outfit-Black',
+  },
+  popupStatDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignSelf: 'center',
+  },
+  profileButton: {
+    backgroundColor: '#00F3FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: '#00F3FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  profileButtonText: {
+    color: '#000',
+    fontSize: 13,
+    fontFamily: 'Outfit-Black',
+    letterSpacing: 0.5,
+    marginRight: 4,
+  }
 });

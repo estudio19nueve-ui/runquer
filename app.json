@@ -14,7 +14,7 @@
       "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.estudio19nueve.runquer",
       "entitlements": {
         "com.apple.developer.healthkit": true,

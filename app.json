@@ -3,7 +3,7 @@
     "name": "Runquer",
     "slug": "runquer-app",
     "scheme": "runquer",
-    "version": "2.5.3",
+    "version": "2.5.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

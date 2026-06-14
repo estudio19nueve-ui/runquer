@@ -17,7 +17,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.estudio19nueve.runquer",
       "entitlements": {
-        "com.apple.developer.healthkit": true
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false

@@ -11,6 +11,7 @@ import * as Location from 'expo-location';
 
 import { supabase } from '../lib/supabase';
 import { gamificationService, getLevelTitle } from '../api/gamificationService';
+import { MedalIcon } from '../components/MedalIcon';
 import { healthKitService } from '../services/healthKitService';
 import { stravaAuthService } from '../services/stravaAuthService';
 import { stravaSyncService } from '../services/stravaSyncService';
@@ -60,6 +61,7 @@ export const ProfileScreen = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const [medals, setMedals] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalDistance: 0,
     avgPace: '0:00',
@@ -161,6 +163,9 @@ export const ProfileScreen = () => {
 
   const fetchProfileData = async () => {
     try {
+      // 1. Failsafe para cerrar periodos y otorgar medallas
+      await gamificationService.checkAndAwardMedals();
+
       const p = await gamificationService.getMyProfile() as any;
       console.log('Profile Data Received:', p?.username, 'Area:', p?.total_area);
       if (p) {
@@ -186,6 +191,10 @@ export const ProfileScreen = () => {
           total_area: realArea
         });
         setNewUsername(p.username || "");
+
+        // 2. Cargar las medallas obtenidas
+        const medalsData = await gamificationService.getUserMedals(p.id);
+        setMedals(medalsData || []);
       }
 
       const { data: runs } = await supabase
@@ -656,6 +665,48 @@ export const ProfileScreen = () => {
             <Text style={{ fontSize: 12 }}> km²</Text>
           </Text>
         </View>
+      </View>
+
+      {/* SECCIÓN DE CONQUISTAS (MEDALLAS) */}
+      <View style={styles.medalsSection}>
+        <Text style={styles.medalsSectionTitle}>CONQUISTAS (MEDALLAS DIGITALES)</Text>
+        {medals.length === 0 ? (
+          <View style={styles.emptyMedalsCard}>
+            <Trophy size={32} color="#333" style={{ marginBottom: 8 }} />
+            <Text style={styles.emptyMedalsText}>
+              Aún no tienes medallas. ¡Clasifica en el top 3 de la semana, mes o año para ganar tu primera conquista!
+            </Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.medalsList}>
+            {medals.map((medal) => {
+              const formattedDate = new Date(medal.period_start).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              const periodLabel = medal.period_type === 'weekly' ? 'Semanal' : medal.period_type === 'monthly' ? 'Mensual' : 'Anual';
+              const medalLabel = medal.medal_type === 'gold' ? 'Oro' : medal.medal_type === 'silver' ? 'Plata' : 'Bronce';
+              const area = (medal.area_sqm / 1000000).toFixed(4);
+
+              const handlePressMedal = () => {
+                Alert.alert(
+                  `Conquista: ¡Medalla de ${medalLabel}!`,
+                  `Otorgada en la clasificación ${periodLabel.toLowerCase()} correspondiente al período que inició el ${formattedDate}.\n\nÁrea acumulada en ese período: ${area} km².\n\n¡Sigue conquistando la ciudad para defender tu lugar en la cima!`,
+                  [{ text: "¡Entendido!" }]
+                );
+              };
+
+              return (
+                <TouchableOpacity key={medal.id} style={styles.medalCard} onPress={handlePressMedal}>
+                  <MedalIcon medalType={medal.medal_type} periodType={medal.period_type} size={70} />
+                  <Text style={styles.medalTitle}>{medalLabel}</Text>
+                  <Text style={styles.medalSubtitle}>{periodLabel}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
 
       <View style={styles.actions}>
@@ -1144,7 +1195,67 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Outfit-Bold',
     marginLeft: 8,
-  }
+  },
+  medalsSection: {
+    paddingHorizontal: 20,
+    marginTop: 25,
+  },
+  medalsSectionTitle: {
+    color: '#666',
+    fontSize: 10,
+    fontFamily: 'Outfit-Bold',
+    letterSpacing: 1,
+    marginBottom: 15,
+  },
+  medalsList: {
+    paddingVertical: 5,
+    paddingRight: 10,
+  },
+  medalCard: {
+    backgroundColor: '#0A0B14',
+    borderWidth: 1,
+    borderColor: '#222',
+    borderRadius: 20,
+    padding: 15,
+    marginRight: 12,
+    alignItems: 'center',
+    width: 105,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  medalTitle: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: 'Outfit-Bold',
+    marginTop: 8,
+    textTransform: 'capitalize',
+  },
+  medalSubtitle: {
+    color: '#666',
+    fontSize: 10,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 2,
+  },
+  emptyMedalsCard: {
+    backgroundColor: '#0A0B14',
+    borderWidth: 1,
+    borderColor: '#111',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyMedalsText: {
+    color: '#555',
+    fontSize: 12,
+    fontFamily: 'Outfit-Medium',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 15,
+  },
 });
 
 export default ProfileScreen;

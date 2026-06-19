@@ -124,6 +124,31 @@ export const gamificationService = {
       ...(ua.achievements as any),
       earned_at: ua.earned_at
     })) as Achievement[];
+  },
+
+  async getUserMedals(userId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('user_medals')
+      .select('*')
+      .eq('user_id', userId)
+      .order('period_start', { ascending: false });
+
+    if (error) {
+      console.warn('Error fetching user medals:', error);
+      return [];
+    }
+    return data || [];
+  },
+
+  async checkAndAwardMedals(): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('check_and_award_medals');
+      if (error) {
+        console.warn('[GamificationService] RPC check_and_award_medals notice/warning:', error.message);
+      }
+    } catch (e) {
+      console.warn('[GamificationService] Failsafe RPC execution failed (likely database not migrated yet):', e);
+    }
   }
 };
 

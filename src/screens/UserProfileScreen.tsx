@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, Image, FlatList, TouchableOpacity, ActivityIndicator, Dimensions, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, UserPlus, UserMinus, Calendar, Map as MapIcon, Shield } from 'lucide-react-native';
+import { ChevronLeft, UserPlus, UserMinus, Calendar, Map as MapIcon, Shield, Trophy } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { socialService } from '../api/socialService';
-import { getLevelTitle } from '../api/gamificationService';
+import { gamificationService, getLevelTitle } from '../api/gamificationService';
+import { MedalIcon } from '../components/MedalIcon';
 import Mapbox from '@rnmapbox/maps';
 import { COLORS } from '../constants/theme';
 
@@ -24,6 +25,7 @@ export default function UserProfileScreen() {
   const [profile, setProfile] = useState<any>(null);
   const [activities, setActivities] = useState<any[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [medals, setMedals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalDistance: 0,
@@ -91,6 +93,10 @@ export default function UserProfileScreen() {
       // 4. Verificar si le sigo
       const following = await socialService.checkFollowing(userId);
       setIsFollowing(following);
+
+      // 5. Obtener medallas del usuario visitado
+      const medalsData = await gamificationService.getUserMedals(userId);
+      setMedals(medalsData || []);
 
     } catch (e) {
       console.error(e);
@@ -261,6 +267,48 @@ export default function UserProfileScreen() {
               )}
             </TouchableOpacity>
 
+            {/* SECCIÓN DE CONQUISTAS (MEDALLAS) */}
+            <View style={styles.medalsSection}>
+              <Text style={styles.medalsTitleHeader}>CONQUISTAS (MEDALLAS DIGITALES)</Text>
+              {medals.length === 0 ? (
+                <View style={styles.emptyMedalsCard}>
+                  <Trophy size={24} color="#333" style={{ marginBottom: 6 }} />
+                  <Text style={styles.emptyMedalsText}>
+                    Este explorador aún no ha ganado medallas de clasificación.
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.medalsList}>
+                  {medals.map((medal) => {
+                    const formattedDate = new Date(medal.period_start).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    });
+                    const periodLabel = medal.period_type === 'weekly' ? 'Semanal' : medal.period_type === 'monthly' ? 'Mensual' : 'Anual';
+                    const medalLabel = medal.medal_type === 'gold' ? 'Oro' : medal.medal_type === 'silver' ? 'Plata' : 'Bronce';
+                    const area = (medal.area_sqm / 1000000).toFixed(4);
+
+                    const handlePressMedal = () => {
+                      Alert.alert(
+                        `Conquista: ¡Medalla de ${medalLabel}!`,
+                        `Otorgada a ${profile?.username || 'este explorador'} en la clasificación ${periodLabel.toLowerCase()} correspondiente al período que inició el ${formattedDate}.\n\nÁrea acumulada en ese período: ${area} km².`,
+                        [{ text: "¡Genial!" }]
+                      );
+                    };
+
+                    return (
+                      <TouchableOpacity key={medal.id} style={styles.medalCard} onPress={handlePressMedal}>
+                        <MedalIcon medalType={medal.medal_type} periodType={medal.period_type} size={64} />
+                        <Text style={styles.medalTitle}>{medalLabel}</Text>
+                        <Text style={styles.medalSubtitle}>{periodLabel}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+
             <Text style={styles.sectionTitle}>ÚLTIMAS CONQUISTAS</Text>
           </View>
         }
@@ -353,5 +401,60 @@ const styles = StyleSheet.create({
   statLabel: { color: '#444', fontSize: 8, fontFamily: 'Outfit-Black' },
   statValue: { color: COLORS.accent, fontSize: 16, fontFamily: 'Outfit-Black' },
   empty: { marginTop: 40, alignItems: 'center' },
-  emptyText: { color: '#444', fontSize: 14, textAlign: 'center', paddingHorizontal: 40, marginTop: 15 }
+  emptyText: { color: '#444', fontSize: 14, textAlign: 'center', paddingHorizontal: 40, marginTop: 15 },
+  medalsSection: {
+    width: '100%',
+    marginTop: 25,
+  },
+  medalsTitleHeader: {
+    color: '#444',
+    fontSize: 10,
+    fontFamily: 'Outfit-Black',
+    letterSpacing: 1,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+  },
+  medalsList: {
+    paddingVertical: 5,
+    paddingRight: 10,
+  },
+  medalCard: {
+    backgroundColor: '#0A0B14',
+    borderWidth: 1,
+    borderColor: '#111',
+    borderRadius: 20,
+    padding: 12,
+    marginRight: 12,
+    alignItems: 'center',
+    width: 95,
+  },
+  medalTitle: {
+    color: '#FFF',
+    fontSize: 11,
+    fontFamily: 'Outfit-Bold',
+    marginTop: 6,
+  },
+  medalSubtitle: {
+    color: '#666',
+    fontSize: 9,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 1,
+  },
+  emptyMedalsCard: {
+    backgroundColor: '#0A0B14',
+    borderWidth: 1,
+    borderColor: '#111',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  emptyMedalsText: {
+    color: '#444',
+    fontSize: 11,
+    fontFamily: 'Outfit-Medium',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
 });
